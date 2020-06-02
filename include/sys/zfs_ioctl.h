@@ -486,7 +486,7 @@ typedef struct zfs_cmd {
 	uint32_t	zc_flags;
 	uint64_t	zc_action_handle;
 	int		zc_cleanup_fd;
-	uint8_t		zc_simple;
+	uint8_t		zc_quickstats;
 	uint8_t		zc_pad[3];		/* alignment */
 	uint64_t	zc_sendobj;
 	uint64_t	zc_fromobj;

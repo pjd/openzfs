@@ -152,7 +152,6 @@ int zpool_standard_error(libzfs_handle_t *, int, const char *);
 int zpool_standard_error_fmt(libzfs_handle_t *, int, const char *, ...);
 
 zfs_handle_t *make_dataset_handle_zc(libzfs_handle_t *, zfs_cmd_t *);
-zfs_handle_t *make_dataset_simple_handle_zc(zfs_handle_t *, zfs_cmd_t *);
 
 int zprop_parse_value(libzfs_handle_t *, nvpair_t *, int, zfs_type_t,
     nvlist_t *, char **, uint64_t *, const char *);

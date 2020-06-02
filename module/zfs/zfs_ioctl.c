@@ -2043,6 +2043,29 @@ zfs_ioc_vdev_setfru(zfs_cmd_t *zc)
 }
 
 static int
+zfs_ioc_objset_quickstats_impl(zfs_cmd_t *zc, objset_t *os)
+{
+	int error = 0;
+
+	dmu_objset_fast_stat(os, &zc->zc_objset_stats);
+
+	if (zc->zc_nvlist_dst != 0) {
+		dmu_objset_stats_t *stats = &zc->zc_objset_stats;
+		nvlist_t *nv;
+
+		VERIFY(nvlist_alloc(&nv, NV_UNIQUE_NAME, KM_SLEEP) == 0);
+		dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_GUID,
+		    stats->dds_guid);
+		dsl_prop_nvlist_add_uint64(nv, ZFS_PROP_CREATETXG,
+		    stats->dds_creation_txg);
+		error = put_nvlist(zc, nv);
+		nvlist_free(nv);
+	}
+
+	return (error);
+}
+
+static int
 zfs_ioc_objset_stats_impl(zfs_cmd_t *zc, objset_t *os)
 {
 	int error = 0;
@@ -2262,6 +2285,7 @@ top:
  * zc_cookie		zap cursor
  * zc_nvlist_src	iteration range nvlist
  * zc_nvlist_src_size	size of iteration range nvlist
+ * zc_quickstats	when set, only return stats at hand
  *
  * outputs:
  * zc_name		name of next snapshot
@@ -2336,16 +2360,16 @@ zfs_ioc_snapshot_list_next(zfs_cmd_t *zc)
 			continue;
 		}
 
-		if (zc->zc_simple) {
-			dsl_dataset_rele(ds, FTAG);
-			break;
-		}
-
 		if ((error = dmu_objset_from_ds(ds, &ossnap)) != 0) {
 			dsl_dataset_rele(ds, FTAG);
 			break;
 		}
-		if ((error = zfs_ioc_objset_stats_impl(zc, ossnap)) != 0) {
+		if (zc->zc_quickstats) {
+			error = zfs_ioc_objset_quickstats_impl(zc, ossnap);
+		} else {
+			error = zfs_ioc_objset_stats_impl(zc, ossnap);
+		}
+		if (error != 0) {
 			dsl_dataset_rele(ds, FTAG);
 			break;
 		}

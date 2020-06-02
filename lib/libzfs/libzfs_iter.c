@@ -140,7 +140,7 @@ zfs_iter_filesystems(zfs_handle_t *zhp, zfs_iter_f func, void *data)
  * Iterate over all snapshots
  */
 int
-zfs_iter_snapshots(zfs_handle_t *zhp, boolean_t simple, zfs_iter_f func,
+zfs_iter_snapshots(zfs_handle_t *zhp, boolean_t quickstats, zfs_iter_f func,
     void *data, uint64_t min_txg, uint64_t max_txg)
 {
 	zfs_cmd_t zc = {"\0"};
@@ -152,7 +152,7 @@ zfs_iter_snapshots(zfs_handle_t *zhp, boolean_t simple, zfs_iter_f func,
 	    zhp->zfs_type == ZFS_TYPE_BOOKMARK)
 		return (0);
 
-	zc.zc_simple = simple;
+	zc.zc_quickstats = quickstats;
 
 	if (zcmd_alloc_dst_nvlist(zhp->zfs_hdl, &zc, 0) != 0)
 		return (-1);
@@ -177,10 +177,7 @@ zfs_iter_snapshots(zfs_handle_t *zhp, boolean_t simple, zfs_iter_f func,
 	while ((ret = zfs_do_list_ioctl(zhp, ZFS_IOC_SNAPSHOT_LIST_NEXT,
 	    &zc)) == 0) {
 
-		if (simple)
-			nzhp = make_dataset_simple_handle_zc(zhp, &zc);
-		else
-			nzhp = make_dataset_handle_zc(zhp->zfs_hdl, &zc);
+		nzhp = make_dataset_handle_zc(zhp->zfs_hdl, &zc);
 		if (nzhp == NULL)
 			continue;
 

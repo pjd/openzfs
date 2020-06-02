@@ -3556,11 +3556,11 @@ zfs_do_list(int argc, char **argv)
 		fields = default_fields;
 
 	/*
-	 * If we are only going to list snapshot names and sort by name,
-	 * then we can use faster version.
+	 * If we are only going to use properties that we have at hand for
+	 * listing and sorting, we can use quicker method.
 	 */
-	if (strcmp(fields, "name") == 0 && zfs_sort_only_by_name(sortcol))
-		flags |= ZFS_ITER_SIMPLE;
+	if (zfs_quickstats_fields(fields) && zfs_quickstats_sort(sortcol))
+		flags |= ZFS_ITER_QUICKSTATS;
 
 	/*
 	 * If "-o space" and no types were specified, don't display snapshots.

@@ -521,23 +521,6 @@ make_dataset_handle_zc(libzfs_handle_t *hdl, zfs_cmd_t *zc)
 }
 
 zfs_handle_t *
-make_dataset_simple_handle_zc(zfs_handle_t *pzhp, zfs_cmd_t *zc)
-{
-	zfs_handle_t *zhp = calloc(1, sizeof (zfs_handle_t));
-
-	if (zhp == NULL)
-		return (NULL);
-
-	zhp->zfs_hdl = pzhp->zfs_hdl;
-	(void) strlcpy(zhp->zfs_name, zc->zc_name, sizeof (zhp->zfs_name));
-	zhp->zfs_head_type = pzhp->zfs_type;
-	zhp->zfs_type = ZFS_TYPE_SNAPSHOT;
-	zhp->zpool_hdl = zpool_handle(zhp);
-
-	return (zhp);
-}
-
-zfs_handle_t *
 zfs_handle_dup(zfs_handle_t *zhp_orig)
 {
 	zfs_handle_t *zhp = calloc(1, sizeof (zfs_handle_t));

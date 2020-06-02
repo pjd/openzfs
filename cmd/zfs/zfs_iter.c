@@ -150,7 +150,7 @@ zfs_callback(zfs_handle_t *zhp, void *data)
 		if (((zfs_get_type(zhp) & (ZFS_TYPE_SNAPSHOT |
 		    ZFS_TYPE_BOOKMARK)) == 0) && include_snaps) {
 			(void) zfs_iter_snapshots(zhp,
-			    (cb->cb_flags & ZFS_ITER_SIMPLE) != 0,
+			    (cb->cb_flags & ZFS_ITER_QUICKSTATS) != 0,
 			    zfs_callback, data, 0, 0);
 		}
 
@@ -166,6 +166,28 @@ zfs_callback(zfs_handle_t *zhp, void *data)
 		zfs_close(zhp);
 
 	return (0);
+}
+
+boolean_t
+zfs_quickstats_fields(const char *fields)
+{
+	char *field, *allfields, *tofree;
+
+	tofree = allfields = strdup(fields);
+	if (allfields == NULL)
+		return (B_FALSE);
+
+	while ((field = strsep(&allfields, ",")) != NULL) {
+		if (strcmp(field, "name") != 0 &&
+		    strcmp(field, "guid") != 0 &&
+		    strcmp(field, "createtxg") != 0) {
+			break;
+		}
+	}
+
+	free(tofree);
+
+	return (field == 0);
 }
 
 int
@@ -212,11 +234,21 @@ zfs_free_sort_columns(zfs_sort_column_t *sc)
 	}
 }
 
-int
-zfs_sort_only_by_name(const zfs_sort_column_t *sc)
+boolean_t
+zfs_quickstats_sort(const zfs_sort_column_t *sc)
 {
-	return (sc != NULL && sc->sc_next == NULL &&
-	    sc->sc_prop == ZFS_PROP_NAME);
+	for (; sc != NULL; sc = sc->sc_next) {
+		switch (sc->sc_prop) {
+		case ZFS_PROP_NAME:
+		case ZFS_PROP_GUID:
+		case ZFS_PROP_CREATETXG:
+			break;
+		default:
+			return (B_FALSE);
+		}
+	}
+
+	return (B_TRUE);
 }
 
 /* ARGSUSED */
