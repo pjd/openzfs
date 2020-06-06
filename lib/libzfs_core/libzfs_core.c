@@ -93,6 +93,7 @@
 #include <sys/zfs_ioctl.h>
 
 static int g_fd = -1;
+static boolean_t g_internal_fd;
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 static int g_refcount;
 
@@ -133,14 +134,29 @@ libzfs_core_debug_ioc(void)
 #endif
 
 int
-libzfs_core_init(void)
+libzfs_core_init_fd(int fd)
 {
 	(void) pthread_mutex_lock(&g_lock);
 	if (g_refcount == 0) {
-		g_fd = open(ZFS_DEV, O_RDWR);
-		if (g_fd < 0) {
+		if (fd >= 0) {
+			g_fd = fd;
+			g_internal_fd = B_FALSE;
+		} else {
+			g_fd = open(ZFS_DEV, O_RDWR);
+			if (g_fd < 0) {
+				(void) pthread_mutex_unlock(&g_lock);
+				return (errno);
+			}
+			g_internal_fd = B_TRUE;
+		}
+	} else if (fd >= 0) {
+		/*
+		 * Allow multiple calls to libzfs_core_init_fd(), but only
+		 * with the same descriptor.
+		 */
+		if (fd != g_fd) {
 			(void) pthread_mutex_unlock(&g_lock);
-			return (errno);
+			return (EBADF);
 		}
 	}
 	g_refcount++;
@@ -150,6 +166,12 @@ libzfs_core_init(void)
 #endif
 	(void) pthread_mutex_unlock(&g_lock);
 	return (0);
+}
+
+int
+libzfs_core_init(void)
+{
+	return (libzfs_core_init_fd(-1));
 }
 
 void
@@ -162,7 +184,8 @@ libzfs_core_fini(void)
 		g_refcount--;
 
 	if (g_refcount == 0 && g_fd != -1) {
-		(void) close(g_fd);
+		if (g_internal_fd)
+			(void) close(g_fd);
 		g_fd = -1;
 	}
 	(void) pthread_mutex_unlock(&g_lock);

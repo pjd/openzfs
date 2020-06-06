@@ -39,6 +39,7 @@ extern "C" {
 #endif
 
 int libzfs_core_init(void);
+int libzfs_core_init_fd(int fd);
 void libzfs_core_fini(void);
 
 /*

@@ -909,7 +909,7 @@ libzfs_init(void)
 
 	hdl->libzfs_sharetab = fopen(ZFS_SHARETAB, "r");
 
-	if (libzfs_core_init() != 0) {
+	if (libzfs_core_init_fd(hdl->libzfs_fd) != 0) {
 		(void) close(hdl->libzfs_fd);
 		(void) fclose(hdl->libzfs_mnttab);
 		if (hdl->libzfs_sharetab)
