@@ -386,6 +386,7 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf,
 			}
 			break;
 
+		case ZPOOL_PROP_BRTRATIO:
 		case ZPOOL_PROP_DEDUPRATIO:
 			if (literal)
 				(void) snprintf(buf, len, "%llu.%02llu",
