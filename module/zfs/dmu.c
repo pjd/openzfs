@@ -51,6 +51,7 @@
 #include <sys/sa.h>
 #include <sys/zfeature.h>
 #include <sys/abd.h>
+#include <sys/brt.h>
 #include <sys/trace_zfs.h>
 #include <sys/zfs_racct.h>
 #include <sys/zfs_rlock.h>
@@ -2132,6 +2133,110 @@ dmu_offset_next(objset_t *os, uint64_t object, boolean_t hole, uint64_t *off)
 	dnode_rele(dn, FTAG);
 
 	return (err);
+}
+
+int
+dmu_brt_readbps(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
+    dmu_tx_t *tx, blkptr_t **bpsp, size_t *nbpsp)
+{
+	dmu_buf_t **dbp, *dbuf;
+	dmu_buf_impl_t *db;
+	blkptr_t *bps;
+	int error, ii, numbufs;
+
+	error = dmu_buf_hold_array(os, object, offset, length, FALSE, FTAG,
+	    &numbufs, &dbp);
+	if (error != 0) {
+		if (error == ESRCH) {
+			error = SET_ERROR(ENXIO);
+		}
+		return (error);
+	}
+
+	bps = kmem_alloc(sizeof(blkptr_t) * numbufs, KM_SLEEP);
+
+	for (ii = 0; ii < numbufs; ii++) {
+		dbuf = dbp[ii];
+		db = (dmu_buf_impl_t *)dbuf;
+
+		if (db->db_blkptr == NULL) {
+			error = SET_ERROR(EAGAIN);
+			goto out;
+		}
+		if (dmu_buf_is_dirty(dbuf, tx)) {
+			error = SET_ERROR(EBUSY);
+			goto out;
+		}
+		if (!list_is_empty(&db->db_dirty_records)) {
+			error = SET_ERROR(EBUSY);
+			goto out;
+		}
+
+		bps[ii] = *db->db_blkptr;
+	}
+
+	*nbpsp = numbufs;
+	*bpsp = bps;
+out:
+	dmu_buf_rele_array(dbp, numbufs, FTAG);
+	if (error != 0) {
+		kmem_free(bps, sizeof(blkptr_t) * numbufs);
+	}
+
+	return (error);
+}
+
+void
+dmu_brt_addref(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
+    dmu_tx_t *tx, const blkptr_t *bps, size_t nbps)
+{
+	dmu_buf_t **dbp, *dbuf;
+	dmu_buf_impl_t *db;
+	struct dirty_leaf *dl;
+	dbuf_dirty_record_t *dr;
+	const blkptr_t *bp;
+	brt_t *brt;
+	int numbufs;
+	uint_t ii;
+
+	brt = brt_select(os->os_spa);
+
+	VERIFY(0 == dmu_buf_hold_array(os, object, offset, length, FALSE, FTAG,
+	    &numbufs, &dbp));
+	ASSERT3U(nbps, ==, numbufs);
+
+	for (ii = 0; ii < numbufs; ii++) {
+		dbuf = dbp[ii];
+		db = (dmu_buf_impl_t *)dbuf;
+		bp = &bps[ii];
+
+		ASSERT0(db->db_level);
+		ASSERT(db->db_blkid != DMU_BONUS_BLKID);
+		ASSERT(BP_IS_HOLE(bp) || dbuf->db_size == BP_GET_LSIZE(bp));
+
+		dmu_buf_will_not_fill(dbuf, tx);
+
+		dr = list_head(&db->db_dirty_records);
+		ASSERT3U(dr->dr_txg, ==, tx->tx_txg);
+		dl = &dr->dt.dl;
+		dl->dr_overridden_by = *bp;
+		dl->dr_brtwrite = B_TRUE;
+
+		dl->dr_override_state = DR_OVERRIDDEN;
+		dl->dr_overridden_by.blk_phys_birth = BP_PHYSICAL_BIRTH(bp);
+		dl->dr_overridden_by.blk_birth = dr->dr_txg;
+
+		/*
+		 * When data in embedded into BP there is no need to create
+		 * BRT entry as there is no data block. Just copy the BP as
+		 * it contains the data.
+		 */
+		if (!BP_IS_HOLE(bp) && !BP_IS_EMBEDDED(bp)) {
+			brt_pending_add(brt, bp, tx);
+		}
+	}
+
+	dmu_buf_rele_array(dbp, numbufs, FTAG);
 }
 
 void

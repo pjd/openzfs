@@ -1051,6 +1051,11 @@ int dmu_sync(struct zio *zio, uint64_t txg, dmu_sync_cb_t *done, zgd_t *zgd);
 int dmu_offset_next(objset_t *os, uint64_t object, boolean_t hole,
     uint64_t *off);
 
+int dmu_brt_readbps(objset_t *os, uint64_t object, uint64_t offset,
+    uint64_t length, dmu_tx_t *tx, struct blkptr **bpsp, size_t *nbpsp);
+void dmu_brt_addref(objset_t *os, uint64_t object, uint64_t offset,
+    uint64_t length, dmu_tx_t *tx, const struct blkptr *bps, size_t nbps);
+
 /*
  * Initial setup and final teardown.
  */
