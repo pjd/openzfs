@@ -2195,11 +2195,8 @@ dmu_brt_addref(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 	struct dirty_leaf *dl;
 	dbuf_dirty_record_t *dr;
 	const blkptr_t *bp;
-	brt_t *brt;
 	int numbufs;
 	uint_t ii;
-
-	brt = brt_select(os->os_spa);
 
 	VERIFY(0 == dmu_buf_hold_array(os, object, offset, length, FALSE, FTAG,
 	    &numbufs, &dbp));
@@ -2232,7 +2229,7 @@ dmu_brt_addref(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 		 * it contains the data.
 		 */
 		if (!BP_IS_HOLE(bp) && !BP_IS_EMBEDDED(bp)) {
-			brt_pending_add(brt, bp, tx);
+			brt_pending_add(os->os_spa, bp, tx);
 		}
 	}
 
