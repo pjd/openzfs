@@ -598,6 +598,11 @@ zpool_feature_init(void)
 	zfeature_register(SPA_FEATURE_DRAID,
 	    "org.openzfs:draid", "draid", "Support for distributed spare RAID",
 	    ZFEATURE_FLAG_MOS, ZFEATURE_TYPE_BOOLEAN, NULL);
+
+	zfeature_register(SPA_FEATURE_BLOCK_CLONING,
+	    "com.fudosecurity:block_cloning", "block_cloning",
+	    "Block cloning through fclonefile(2) system call.",
+	    ZFEATURE_FLAG_READONLY_COMPAT, ZFEATURE_TYPE_BOOLEAN, NULL);
 }
 
 #if defined(_KERNEL)
