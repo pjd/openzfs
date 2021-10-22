@@ -132,23 +132,25 @@ enum zio_stage {
 	ZIO_STAGE_DDT_WRITE		= 1 << 11,	/* -W--- */
 	ZIO_STAGE_DDT_FREE		= 1 << 12,	/* --F-- */
 
-	ZIO_STAGE_GANG_ASSEMBLE		= 1 << 13,	/* RWFC- */
-	ZIO_STAGE_GANG_ISSUE		= 1 << 14,	/* RWFC- */
+	ZIO_STAGE_BRT_FREE		= 1 << 13,	/* --F-- */
 
-	ZIO_STAGE_DVA_THROTTLE		= 1 << 15,	/* -W--- */
-	ZIO_STAGE_DVA_ALLOCATE		= 1 << 16,	/* -W--- */
-	ZIO_STAGE_DVA_FREE		= 1 << 17,	/* --F-- */
-	ZIO_STAGE_DVA_CLAIM		= 1 << 18,	/* ---C- */
+	ZIO_STAGE_GANG_ASSEMBLE		= 1 << 14,	/* RWFC- */
+	ZIO_STAGE_GANG_ISSUE		= 1 << 15,	/* RWFC- */
 
-	ZIO_STAGE_READY			= 1 << 19,	/* RWFCI */
+	ZIO_STAGE_DVA_THROTTLE		= 1 << 16,	/* -W--- */
+	ZIO_STAGE_DVA_ALLOCATE		= 1 << 17,	/* -W--- */
+	ZIO_STAGE_DVA_FREE		= 1 << 18,	/* --F-- */
+	ZIO_STAGE_DVA_CLAIM		= 1 << 19,	/* ---C- */
 
-	ZIO_STAGE_VDEV_IO_START		= 1 << 20,	/* RW--I */
-	ZIO_STAGE_VDEV_IO_DONE		= 1 << 21,	/* RW--I */
-	ZIO_STAGE_VDEV_IO_ASSESS	= 1 << 22,	/* RW--I */
+	ZIO_STAGE_READY			= 1 << 20,	/* RWFCI */
 
-	ZIO_STAGE_CHECKSUM_VERIFY	= 1 << 23,	/* R---- */
+	ZIO_STAGE_VDEV_IO_START		= 1 << 21,	/* RW--I */
+	ZIO_STAGE_VDEV_IO_DONE		= 1 << 22,	/* RW--I */
+	ZIO_STAGE_VDEV_IO_ASSESS	= 1 << 23,	/* RW--I */
 
-	ZIO_STAGE_DONE			= 1 << 24	/* RWFCI */
+	ZIO_STAGE_CHECKSUM_VERIFY	= 1 << 24,	/* R---- */
+
+	ZIO_STAGE_DONE			= 1 << 25	/* RWFCI */
 };
 
 #define	ZIO_INTERLOCK_STAGES			\
@@ -233,13 +235,15 @@ enum zio_stage {
 #define	ZIO_FREE_PIPELINE			\
 	(ZIO_INTERLOCK_STAGES |			\
 	ZIO_STAGE_FREE_BP_INIT |		\
+	ZIO_STAGE_BRT_FREE |			\
 	ZIO_STAGE_DVA_FREE)
 
 #define	ZIO_DDT_FREE_PIPELINE			\
 	(ZIO_INTERLOCK_STAGES |			\
 	ZIO_STAGE_FREE_BP_INIT |		\
 	ZIO_STAGE_ISSUE_ASYNC |			\
-	ZIO_STAGE_DDT_FREE)
+	ZIO_STAGE_DDT_FREE |			\
+	ZIO_STAGE_BRT_FREE)
 
 #define	ZIO_CLAIM_PIPELINE			\
 	(ZIO_INTERLOCK_STAGES |			\
