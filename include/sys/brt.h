@@ -37,33 +37,24 @@
 extern "C" {
 #endif
 
-extern int brt_object_count(brt_t *brt, uint64_t *count);
-extern int brt_object_info(brt_t *brt, dmu_object_info_t *);
-extern boolean_t brt_object_exists(brt_t *brt);
-
-extern boolean_t brt_entry_decref(brt_t *brt, const blkptr_t *bp);
+extern boolean_t brt_entry_decref(spa_t *spa, const blkptr_t *bp);
 
 extern uint64_t brt_get_dspace(spa_t *spa);
 extern uint64_t brt_get_pool_ratio(spa_t *spa);
 
-extern brt_t *brt_select(spa_t *spa);
 extern boolean_t brt_may_exists(spa_t *spa, const blkptr_t *bp);
-extern void brt_enter(brt_t *brt);
-extern void brt_exit(brt_t *brt);
 extern void brt_init(void);
 extern void brt_fini(void);
-extern brt_entry_t *brt_lookup(brt_t *brt, const blkptr_t *bp);
 
 extern boolean_t brt_contains(spa_t *spa, const blkptr_t *bp);
 
-extern void brt_pending_add(brt_t *brt, const blkptr_t *bp, dmu_tx_t *tx);
-extern void brt_pending_apply(brt_t *brt, uint64_t txg);
+extern void brt_pending_add(spa_t *spa, const blkptr_t *bp, dmu_tx_t *tx);
+extern void brt_pending_apply(spa_t *spa, uint64_t txg);
 
 extern void brt_create(spa_t *spa);
 extern int brt_load(spa_t *spa);
 extern void brt_unload(spa_t *spa);
 extern void brt_sync(spa_t *spa, uint64_t txg);
-extern int brt_object_update(brt_t *brt, brt_entry_t *bre, dmu_tx_t *tx);
 
 #ifdef	__cplusplus
 }

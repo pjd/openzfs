@@ -44,14 +44,14 @@
 /*
  * In-core brt
  */
-struct brt {
+typedef struct brt {
 	kmutex_t	brt_lock;
 	avl_tree_t	brt_tree;
 	spa_t		*brt_spa;
 	objset_t	*brt_os;
 	uint64_t	brt_object;
 	list_t		brt_pending;
-};
+} brt_t;
 
 /*
  * On-disk brt entry:  key (name) and physical storage (value).
@@ -70,11 +70,11 @@ typedef struct brt_phys {
 /*
  * In-core brt entry
  */
-struct brt_entry {
+typedef struct brt_entry {
 	brt_key_t	bre_key;
 	brt_phys_t	bre_phys;
 	avl_node_t	bre_node;
-};
+} brt_entry_t;
 
 typedef struct brt_pending_entry {
 	brt_key_t	bpe_key;
@@ -129,6 +129,18 @@ static brt_stats_t brt_stats = {
 };
 
 #define	BRTSTAT_BUMP(stat)	atomic_inc_64(&brt_stats.stat.value.ui64)
+
+static void
+brt_enter(brt_t *brt)
+{
+	mutex_enter(&brt->brt_lock);
+}
+
+static void
+brt_exit(brt_t *brt)
+{
+	mutex_exit(&brt->brt_lock);
+}
 
 static int
 brt_zap_create(objset_t *os, uint64_t *objectp, dmu_tx_t *tx)
@@ -228,6 +240,20 @@ brt_phys_total_refcnt(const brt_entry_t *bre)
 	return (bre->bre_phys.brp_refcnt);
 }
 
+static boolean_t
+brt_object_exists(brt_t *brt)
+{
+	return (!!brt->brt_object);
+}
+
+static int
+brt_object_count(brt_t *brt, uint64_t *count)
+{
+	ASSERT(brt_object_exists(brt));
+
+	return (brt_zap_count(brt->brt_os, brt->brt_object, count));
+}
+
 static void
 brt_object_create(brt_t *brt, dmu_tx_t *tx)
 {
@@ -296,7 +322,7 @@ brt_object_prefetch(brt_t *brt, brt_entry_t *bre)
 	brt_zap_prefetch(brt->brt_os, brt->brt_object, bre);
 }
 
-int
+static int
 brt_object_update(brt_t *brt, brt_entry_t *bre, dmu_tx_t *tx)
 {
 	ASSERT(brt_object_exists(brt));
@@ -312,29 +338,6 @@ brt_object_remove(brt_t *brt, brt_entry_t *bre, dmu_tx_t *tx)
 		return (ENOENT);
 
 	return (brt_zap_remove(brt->brt_os, brt->brt_object, bre, tx));
-}
-
-int
-brt_object_count(brt_t *brt, uint64_t *count)
-{
-	ASSERT(brt_object_exists(brt));
-
-	return (brt_zap_count(brt->brt_os, brt->brt_object, count));
-}
-
-int
-brt_object_info(brt_t *brt, dmu_object_info_t *doi)
-{
-	if (!brt_object_exists(brt))
-		return (SET_ERROR(ENOENT));
-
-	return (dmu_object_info(brt->brt_os, brt->brt_object, doi));
-}
-
-boolean_t
-brt_object_exists(brt_t *brt)
-{
-	return (!!brt->brt_object);
 }
 
 /*
@@ -360,6 +363,9 @@ uint64_t
 brt_get_dspace(spa_t *spa)
 {
 
+	if (spa->spa_brt == NULL)
+		return (0);
+
 	return (spa->spa_brt->brt_dsize);
 }
 
@@ -372,24 +378,6 @@ brt_get_pool_ratio(spa_t *spa)
 		return (100);
 
 	return ((brt->brt_drefsize + brt->brt_dsize) * 100 / brt->brt_drefsize);
-}
-
-brt_t *
-brt_select(spa_t *spa)
-{
-	return (spa->spa_brt);
-}
-
-void
-brt_enter(brt_t *brt)
-{
-	mutex_enter(&brt->brt_lock);
-}
-
-void
-brt_exit(brt_t *brt)
-{
-	mutex_exit(&brt->brt_lock);
 }
 
 static void
@@ -470,11 +458,10 @@ brt_entry_addref(brt_t *brt, const brt_key_t *brk, uint64_t dsize)
 
 		error = brt_object_lookup(brt, bre);
 		ASSERT(error == 0 || error == ENOENT);
-		if (error == 0) {
+		if (error == 0)
 			BRTSTAT_BUMP(brt_addref_entry_on_disk);
-		} else {
+		else
 			BRTSTAT_BUMP(brt_addref_entry_not_on_disk);
-		}
 
 		brt_enter(brt);
 
@@ -484,23 +471,24 @@ brt_entry_addref(brt_t *brt, const brt_key_t *brk, uint64_t dsize)
 			brt_free(bre);
 			bre = racebre;
 		}
-		if (racebre == NULL) {
+		if (racebre == NULL)
 			avl_insert(&brt->brt_tree, bre, where);
-		}
 	}
 	brt_phys_addref(&bre->bre_phys);
 }
 
 /* Return TRUE if block should be freed immediately. */
 boolean_t
-brt_entry_decref(brt_t *brt, const blkptr_t *bp)
+brt_entry_decref(spa_t *spa, const blkptr_t *bp)
 {
+	brt_t *brt;
 	brt_entry_t *bre, *racebre, bre_search;
 	avl_index_t where;
 	int error;
 
 	brt_key_fill(&bre_search.bre_key, bp);
 
+	brt = spa->spa_brt;
 	brt_enter(brt);
 
 	bre = avl_find(&brt->brt_tree, &bre_search, NULL);
@@ -553,11 +541,10 @@ out:
 		return (B_TRUE);
 	}
 
-	if (brt_phys_decref(&bre->bre_phys)) {
+	if (brt_phys_decref(&bre->bre_phys))
 		BRTSTAT_BUMP(brt_decref_free_data_later);
-	} else {
+	else
 		BRTSTAT_BUMP(brt_decref_entry_still_referenced);
-	}
 
 	brt_exit(brt);
 
@@ -578,9 +565,12 @@ brt_prefetch(brt_t *brt, const blkptr_t *bp)
 }
 
 void
-brt_pending_add(brt_t *brt, const blkptr_t *bp, dmu_tx_t *tx)
+brt_pending_add(spa_t *spa, const blkptr_t *bp, dmu_tx_t *tx)
 {
+	brt_t *brt;
 	brt_pending_entry_t *bpe;
+
+	brt = spa->spa_brt;
 
 	bpe = kmem_cache_alloc(brt_pending_entry_cache, KM_SLEEP);
 	bpe->bpe_txg = dmu_tx_get_txg(tx);
@@ -598,19 +588,21 @@ brt_pending_add(brt_t *brt, const blkptr_t *bp, dmu_tx_t *tx)
 }
 
 void
-brt_pending_apply(brt_t *brt, uint64_t txg)
+brt_pending_apply(spa_t *spa, uint64_t txg)
 {
+	brt_t *brt;
 	brt_pending_entry_t *bpe;
 
 	ASSERT3U(txg, !=, 0);
+
+	brt = spa->spa_brt;
 
 	brt_enter(brt);
 	while ((bpe = list_head(&brt->brt_pending)) != NULL) {
 		ASSERT3U(txg, <=, bpe->bpe_txg);
 
-		if (txg < bpe->bpe_txg) {
+		if (txg < bpe->bpe_txg)
 			break;
-		}
 
 		list_remove(&brt->brt_pending, bpe);
 		/*
@@ -632,16 +624,15 @@ brt_entry_compare(const void *x1, const void *x2)
 	const brt_key_t *brk1 = &bre1->bre_key;
 	const brt_key_t *brk2 = &bre2->bre_key;
 
-	if (brk1->brk_vdev < brk2->brk_vdev) {
+	if (brk1->brk_vdev < brk2->brk_vdev)
 		return (-1);
-	} else if (brk1->brk_vdev > brk2->brk_vdev) {
+	else if (brk1->brk_vdev > brk2->brk_vdev)
 		return (1);
-	}
-	if (brk1->brk_offset < brk2->brk_offset) {
+
+	if (brk1->brk_offset < brk2->brk_offset)
 		return (-1);
-	} else if (brk1->brk_offset > brk2->brk_offset) {
+	else if (brk1->brk_offset > brk2->brk_offset)
 		return (1);
-	}
 
 	return (0);
 }
@@ -673,6 +664,7 @@ brt_create(spa_t *spa)
 	mutex_init(&brt->brt_lock, NULL, MUTEX_DEFAULT, NULL);
 	brt->brt_spa = spa;
 	brt->brt_os = spa->spa_meta_objset;
+	brt->brt_blocksize = (1 << spa->spa_min_ashift);
 	brt_table_alloc(brt);
 
 	spa->spa_brt = brt;
@@ -736,9 +728,8 @@ brt_sync_entry(brt_t *brt, brt_entry_t *bre, dmu_tx_t *tx, uint64_t txg)
 		 */
 		ASSERT(brt_object_lookup(brt, bre) == ENOENT);
 	} else {
-		if (!brt_object_exists(brt)) {
+		if (!brt_object_exists(brt))
 			brt_object_create(brt, tx);
-		}
 		VERIFY(brt_object_update(brt, bre, tx) == 0);
 	}
 }
@@ -749,9 +740,8 @@ brt_sync_table(brt_t *brt, dmu_tx_t *tx, uint64_t txg)
 	brt_entry_t *bre;
 	void *cookie = NULL;
 
-	if (avl_numnodes(&brt->brt_tree) == 0) {
+	if (avl_numnodes(&brt->brt_tree) == 0)
 		return;
-	}
 
 	while ((bre = avl_destroy_nodes(&brt->brt_tree, &cookie)) != NULL) {
 		brt_sync_entry(brt, bre, tx, txg);
@@ -762,9 +752,8 @@ brt_sync_table(brt_t *brt, dmu_tx_t *tx, uint64_t txg)
 		uint64_t count;
 
 		VERIFY(brt_object_count(brt, &count) == 0);
-		if (count == 0) {
+		if (count == 0)
 			brt_object_destroy(brt, tx);
-		}
 	}
 }
 
