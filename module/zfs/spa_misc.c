@@ -56,6 +56,7 @@
 #include <sys/fs/zfs.h>
 #include <sys/metaslab_impl.h>
 #include <sys/arc.h>
+#include <sys/brt.h>
 #include <sys/ddt.h>
 #include <sys/kstat.h>
 #include "zfs_prop.h"
@@ -1832,7 +1833,7 @@ void
 spa_update_dspace(spa_t *spa)
 {
 	spa->spa_dspace = metaslab_class_get_dspace(spa_normal_class(spa)) +
-	    ddt_get_dedup_dspace(spa);
+	    ddt_get_dedup_dspace(spa) + brt_get_dspace(spa);
 	if (spa->spa_vdev_removal != NULL) {
 		/*
 		 * We can't allocate from the removing device, so subtract
@@ -2417,6 +2418,7 @@ spa_init(spa_mode_t mode)
 	unique_init();
 	zfs_btree_init();
 	metaslab_stat_init();
+	brt_init();
 	ddt_init();
 	zio_init();
 	dmu_init();
@@ -2450,6 +2452,7 @@ spa_fini(void)
 	dmu_fini();
 	zio_fini();
 	ddt_fini();
+	brt_fini();
 	metaslab_stat_fini();
 	zfs_btree_fini();
 	unique_fini();

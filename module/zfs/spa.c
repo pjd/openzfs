@@ -52,6 +52,7 @@
 #include <sys/dmu_tx.h>
 #include <sys/zap.h>
 #include <sys/zil.h>
+#include <sys/brt.h>
 #include <sys/ddt.h>
 #include <sys/vdev_impl.h>
 #include <sys/vdev_removal.h>
@@ -335,6 +336,8 @@ spa_prop_get_config(spa_t *spa, nvlist_t **nvp)
 
 		spa_prop_add_list(*nvp, ZPOOL_PROP_DEDUPRATIO, NULL,
 		    ddt_get_pool_dedup_ratio(spa), src);
+		spa_prop_add_list(*nvp, ZPOOL_PROP_BRTRATIO, NULL,
+		    brt_get_pool_ratio(spa), src);
 
 		spa_prop_add_list(*nvp, ZPOOL_PROP_HEALTH, NULL,
 		    rvd->vdev_state, src);
@@ -1673,6 +1676,7 @@ spa_unload(spa_t *spa)
 	}
 
 	ddt_unload(spa);
+	brt_unload(spa);
 	spa_unload_log_sm_metadata(spa);
 
 	/*
@@ -4351,6 +4355,21 @@ spa_ld_load_dedup_tables(spa_t *spa)
 }
 
 static int
+spa_ld_load_brt(spa_t *spa)
+{
+	int error = 0;
+	vdev_t *rvd = spa->spa_root_vdev;
+
+	error = brt_load(spa);
+	if (error != 0) {
+		spa_load_failed(spa, "brt_load failed [error=%d]", error);
+		return (spa_vdev_err(rvd, VDEV_AUX_CORRUPT_DATA, EIO));
+	}
+
+	return (0);
+}
+
+static int
 spa_ld_verify_logs(spa_t *spa, spa_import_type_t type, char **ereport)
 {
 	vdev_t *rvd = spa->spa_root_vdev;
@@ -4828,6 +4847,10 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, char **ereport)
 		return (error);
 
 	error = spa_ld_load_dedup_tables(spa);
+	if (error != 0)
+		return (error);
+
+	error = spa_ld_load_brt(spa);
 	if (error != 0)
 		return (error);
 
@@ -5906,6 +5929,10 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	 * Create DDTs (dedup tables).
 	 */
 	ddt_create(spa);
+	/*
+	 * Create BRT table and BRT table object.
+	 */
+	brt_create(spa);
 
 	spa_update_dspace(spa);
 
@@ -9065,6 +9092,7 @@ spa_sync_iterate_to_convergence(spa_t *spa, dmu_tx_t *tx)
 			    &spa->spa_deferred_bpobj, tx);
 		}
 
+		brt_sync(spa, txg);
 		ddt_sync(spa, txg);
 		dsl_scan_sync(dp, tx);
 		svr_sync(spa, tx);
@@ -9188,6 +9216,13 @@ spa_sync(spa_t *spa, uint64_t txg)
 	(void) zio_wait(spa->spa_txg_zio[txg & TXG_MASK]);
 	spa->spa_txg_zio[txg & TXG_MASK] = zio_root(spa, NULL, NULL,
 	    ZIO_FLAG_CANFAIL);
+
+	/*
+	 * Now that there can be no more cloning in this transaction group,
+	 * but we are still before issuing frees, we can process pending BRT
+	 * updates.
+	 */
+	brt_pending_apply(spa, txg);
 
 	/*
 	 * Lock out configuration changes.
