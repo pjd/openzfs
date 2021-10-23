@@ -2220,8 +2220,14 @@ dmu_brt_addref(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 		dl->dr_brtwrite = B_TRUE;
 
 		dl->dr_override_state = DR_OVERRIDDEN;
-		dl->dr_overridden_by.blk_phys_birth = BP_PHYSICAL_BIRTH(bp);
-		dl->dr_overridden_by.blk_birth = dr->dr_txg;
+		if (BP_IS_HOLE(bp)) {
+			dl->dr_overridden_by.blk_phys_birth = 0;
+			dl->dr_overridden_by.blk_birth = 0;
+		} else {
+			dl->dr_overridden_by.blk_phys_birth =
+			    BP_PHYSICAL_BIRTH(bp);
+			dl->dr_overridden_by.blk_birth = dr->dr_txg;
+		}
 
 		/*
 		 * When data in embedded into BP there is no need to create
