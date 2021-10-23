@@ -5283,7 +5283,7 @@ zfs_get_holds(zfs_handle_t *zhp, nvlist_t **nvl)
  *
  * As mentioned above, the constant factor for raidz deflation assumes a 128KB
  * block size. However, zvols typically have a much smaller block size (default
- * 8KB). These smaller blocks may require proportionally much more parity
+ * 16KB). These smaller blocks may require proportionally much more parity
  * information (and perhaps skip sectors). In this case, the change to the
  * "referenced" property may be much more than the logical block size.
  *
@@ -5352,6 +5352,16 @@ zfs_get_holds(zfs_handle_t *zhp, nvlist_t **nvl)
  * | disk1 | disk2 | disk3 | disk4 | disk5 |
  * +-------+-------+-------+-------+-------+
  * |  P0   |  D0   |  D1   |  S0   |  S1   |
+ * +-------+-------+-------+-------+-------+
+ *
+ * In case of RAIDY the parity block can be shared between multiple independent
+ * blocks, so we assume that asize is always equal to psize. The picture is
+ * showing two independent data blocks (A and B) stored on RAIDY vdev:
+ *
+ * +-------+-------+-------+-------+-------+
+ * | disk1 | disk2 | disk3 | disk4 | disk5 |
+ * +-------+-------+-------+-------+-------+
+ * |  P0   |  A0   |  A1   |  B0   |  B1   |
  * +-------+-------+-------+-------+-------+
  *
  * Compression may lead to a variety of block sizes being written for the same
@@ -5428,6 +5438,11 @@ volsize_from_vdevs(zpool_handle_t *zhp, uint64_t nblocks, uint64_t blksize)
 		    &type) != 0)
 			continue;
 
+		/*
+		 * Note that for RAIDY asize is equal to psize, as the parity
+		 * can be shared between multiple blocks, so we don't charge
+		 * any specific block.
+		 */
 		if (strcmp(type, VDEV_TYPE_RAIDZ) != 0 &&
 		    strcmp(type, VDEV_TYPE_DRAID) != 0)
 			continue;

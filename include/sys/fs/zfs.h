@@ -780,6 +780,7 @@ typedef struct zpool_load_policy {
 #define	VDEV_TYPE_RAIDZ			"raidz"
 #define	VDEV_TYPE_DRAID			"draid"
 #define	VDEV_TYPE_DRAID_SPARE		"dspare"
+#define	VDEV_TYPE_RAIDY			"raidy"
 #define	VDEV_TYPE_DISK			"disk"
 #define	VDEV_TYPE_FILE			"file"
 #define	VDEV_TYPE_MISSING		"missing"
@@ -790,6 +791,8 @@ typedef struct zpool_load_policy {
 #define	VDEV_TYPE_INDIRECT		"indirect"
 
 #define	VDEV_RAIDZ_MAXPARITY		3
+
+#define	VDEV_RAIDY_MAXPARITY		3
 
 #define	VDEV_DRAID_MAXPARITY		3
 #define	VDEV_DRAID_MIN_CHILDREN		2

@@ -954,7 +954,7 @@ default_volblocksize(zpool_handle_t *zhp, nvlist_t *props)
 			else
 				asize = MAX(asize, 4 * (1ULL << ashift));
 		} else {
-			/* mirror or (non-redundant) leaf vdev */
+			/* mirror, raidy or (non-redundant) leaf vdev */
 			asize = MAX(asize, 1ULL << ashift);
 		}
 	}

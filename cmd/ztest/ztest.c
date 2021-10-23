@@ -108,6 +108,7 @@
 #include <sys/vdev_impl.h>
 #include <sys/vdev_file.h>
 #include <sys/vdev_initialize.h>
+#include <sys/vdev_raidy.h>
 #include <sys/vdev_raidz.h>
 #include <sys/vdev_trim.h>
 #include <sys/spa_impl.h>
@@ -734,11 +735,11 @@ static ztest_option_t option_table[] = {
 	    "Alignment shift; use 0 for random", DEFAULT_ASHIFT, NULL},
 	{ 'm',	"mirror-copies", "INTEGER", "Number of mirror copies",
 	    DEFAULT_MIRRORS, NULL},
-	{ 'r',	"raid-disks", "INTEGER", "Number of raidz/draid disks",
+	{ 'r',	"raid-disks", "INTEGER", "Number of raidz/raidy/draid disks",
 	    DEFAULT_RAID_CHILDREN, NULL},
 	{ 'R',	"raid-parity", "INTEGER", "Raid parity",
 	    DEFAULT_RAID_PARITY, NULL},
-	{ 'K',	"raid-kind", "raidz|draid|random", "Raid kind",
+	{ 'K',	"raid-kind", "raidz|raidy|draid|random", "Raid kind",
 	    NO_DEFAULT, "random"},
 	{ 'D',	"draid-data", "INTEGER", "Number of draid data drives",
 	    DEFAULT_DRAID_DATA, NULL},
@@ -1071,10 +1072,16 @@ process_options(int argc, char **argv)
 
 	fini_options();
 
-	/* When raid choice is 'random' add a draid pool 50% of the time */
+	/*
+	 * When raid choice is 'random' add raidz, raidy or draid
+	 * 33% of the time.
+	 */
 	if (strcmp(raid_kind, "random") == 0) {
-		(void) strlcpy(raid_kind, (ztest_random(2) == 0) ?
-		    "draid" : "raidz", sizeof (raid_kind));
+		const char *rtypes[] = { "raidz", "raidy", "draid" };
+
+		(void) strlcpy(raid_kind,
+		    rtypes[ztest_random(sizeof (rtypes) / sizeof (rtypes[0]))],
+		    sizeof (raid_kind));
 
 		if (ztest_opts.zo_verbose >= 3)
 			(void) printf("choosing RAID type '%s'\n", raid_kind);
@@ -1113,8 +1120,9 @@ process_options(int argc, char **argv)
 		(void) strlcpy(zo->zo_raid_type, VDEV_TYPE_DRAID,
 		    sizeof (zo->zo_raid_type));
 
-	} else /* using raidz */ {
-		ASSERT0(strcmp(raid_kind, "raidz"));
+	} else /* using raidz or raidy */ {
+		ASSERT(strcmp(raid_kind, "raidz") == 0 ||
+		    strcmp(raid_kind, "raidy") == 0);
 
 		zo->zo_raid_parity = MIN(zo->zo_raid_parity,
 		    zo->zo_raid_children - 1);
@@ -3055,9 +3063,11 @@ ztest_spa_upgrade(ztest_ds_t *zd, uint64_t id)
 	if (ztest_opts.zo_mmp_test)
 		return;
 
-	/* dRAID added after feature flags, skip upgrade test. */
-	if (strcmp(ztest_opts.zo_raid_type, VDEV_TYPE_DRAID) == 0)
+	/* dRAID and raidy added after feature flags, skip upgrade test. */
+	if (strcmp(ztest_opts.zo_raid_type, VDEV_TYPE_DRAID) == 0 ||
+	    strcmp(ztest_opts.zo_raid_type, VDEV_TYPE_RAIDY) == 0) {
 		return;
+	}
 
 	mutex_enter(&ztest_vdev_lock);
 	name = kmem_asprintf("%s_upgrade", ztest_opts.zo_pool);
@@ -3660,6 +3670,8 @@ ztest_vdev_attach_detach(ztest_ds_t *zd, uint64_t id)
 	if (ztest_opts.zo_raid_children > 1) {
 		if (strcmp(oldvd->vdev_ops->vdev_op_type, "raidz") == 0)
 			ASSERT3P(oldvd->vdev_ops, ==, &vdev_raidz_ops);
+		else if (strcmp(oldvd->vdev_ops->vdev_op_type, "raidy") == 0)
+			ASSERT3P(oldvd->vdev_ops, ==, &vdev_raidy_ops);
 		else
 			ASSERT3P(oldvd->vdev_ops, ==, &vdev_draid_ops);
 		ASSERT3U(oldvd->vdev_children, ==, ztest_opts.zo_raid_children);

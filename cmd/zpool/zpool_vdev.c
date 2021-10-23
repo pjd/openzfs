@@ -422,8 +422,8 @@ make_leaf_vdev(nvlist_t *props, const char *arg, boolean_t is_primary)
  * Go through and verify the replication level of the pool is consistent.
  * Performs the following checks:
  *
- * 	For the new spec, verifies that devices in mirrors and raidz are the
- * 	same size.
+ * 	For the new spec, verifies that devices in mirrors, raidz and raidy
+ *	are the same size.
  *
  * 	If the current configuration already has inconsistent replication
  * 	levels, ignore any other potential problems in the new spec.
@@ -443,14 +443,15 @@ typedef struct replication_level {
 #define	ZPOOL_FUZZ	(16 * 1024 * 1024)
 
 /*
- * N.B. For the purposes of comparing replication levels dRAID can be
- * considered functionally equivalent to raidz.
+ * N.B. For the purposes of comparing replication levels, dRAID and raidy
+ * can be considered functionally equivalent to raidz.
  */
 static boolean_t
 is_raidz_mirror(replication_level_t *a, replication_level_t *b,
     replication_level_t **raidz, replication_level_t **mirror)
 {
 	if ((strcmp(a->zprl_type, "raidz") == 0 ||
+	    strcmp(a->zprl_type, "raidy") == 0 ||
 	    strcmp(a->zprl_type, "draid") == 0) &&
 	    strcmp(b->zprl_type, "mirror") == 0) {
 		*raidz = a;
@@ -461,19 +462,26 @@ is_raidz_mirror(replication_level_t *a, replication_level_t *b,
 }
 
 /*
- * Comparison for determining if dRAID and raidz where passed in either order.
+ * Comparison for determining if dRAID, raidz and raidy where passed in
+ * either order.
  */
 static boolean_t
-is_raidz_draid(replication_level_t *a, replication_level_t *b)
+is_different_raid(replication_level_t *a, replication_level_t *b)
 {
-	if ((strcmp(a->zprl_type, "raidz") == 0 ||
-	    strcmp(a->zprl_type, "draid") == 0) &&
-	    (strcmp(b->zprl_type, "raidz") == 0 ||
-	    strcmp(b->zprl_type, "draid") == 0)) {
-		return (B_TRUE);
-	}
+	boolean_t isaraid, isbraid;
 
-	return (B_FALSE);
+	if (strcmp(a->zprl_type, b->zprl_type) == 0)
+		return (B_FALSE);
+
+	isaraid = (strcmp(a->zprl_type, "raidz") == 0 ||
+	    strcmp(a->zprl_type, "raidy") == 0 ||
+	    strcmp(a->zprl_type, "draid") == 0);
+
+	isbraid = (strcmp(b->zprl_type, "raidz") == 0 ||
+	    strcmp(b->zprl_type, "raidy") == 0 ||
+	    strcmp(b->zprl_type, "draid") == 0);
+
+	return (isaraid && isbraid);
 }
 
 /*
@@ -531,10 +539,10 @@ get_replication(nvlist_t *nvroot, boolean_t fatal)
 			int64_t vdev_size;
 
 			/*
-			 * This is a mirror or RAID-Z vdev.  Go through and make
-			 * sure the contents are all the same (files vs. disks),
-			 * keeping track of the number of elements in the
-			 * process.
+			 * This is a mirror, raidz, raidy or dRAID vdev.
+			 * Go through and make sure the contents are all
+			 * the same (files vs. disks), keeping track of
+			 * the number of elements in the process.
 			 *
 			 * We also check that the size of each vdev (if it can
 			 * be determined) is the same.
@@ -543,6 +551,7 @@ get_replication(nvlist_t *nvroot, boolean_t fatal)
 			rep.zprl_children = 0;
 
 			if (strcmp(type, VDEV_TYPE_RAIDZ) == 0 ||
+			    strcmp(type, VDEV_TYPE_RAIDY) == 0 ||
 			    strcmp(type, VDEV_TYPE_DRAID) == 0) {
 				verify(nvlist_lookup_uint64(nv,
 				    ZPOOL_CONFIG_NPARITY,
@@ -712,9 +721,9 @@ get_replication(nvlist_t *nvroot, boolean_t fatal)
 					else
 						return (NULL);
 				}
-			} else if (is_raidz_draid(&lastrep, &rep)) {
+			} else if (is_different_raid(&lastrep, &rep)) {
 				/*
-				 * Accepted raidz and draid when they can
+				 * Accepted raidz, raidy and draid when they can
 				 * handle the same number of disk failures.
 				 */
 				if (lastrep.zprl_parity != rep.zprl_parity) {
@@ -1170,7 +1179,7 @@ is_device_in_use(nvlist_t *config, nvlist_t *nv, boolean_t force,
 }
 
 /*
- * Returns the parity level extracted from a raidz or draid type.
+ * Returns the parity level extracted from a raidz, raidy or draid type.
  * If the parity cannot be determined zero is returned.
  */
 static int
@@ -1195,6 +1204,26 @@ get_parity(const char *type)
 			parity = strtol(p, &end, 10);
 			if (errno != 0 || *end != '\0' ||
 			    parity < 1 || parity > VDEV_RAIDZ_MAXPARITY) {
+				return (0);
+			}
+		}
+	} else if (strncmp(type, VDEV_TYPE_RAIDY,
+	    strlen(VDEV_TYPE_RAIDY)) == 0) {
+		p = type + strlen(VDEV_TYPE_RAIDY);
+
+		if (*p == '\0') {
+			/* when unspecified default to single parity */
+			return (1);
+		} else if (*p == '0') {
+			/* no zero prefixes allowed */
+			return (0);
+		} else {
+			/* 0-3, no suffixes allowed */
+			char *end;
+			errno = 0;
+			parity = strtol(p, &end, 10);
+			if (errno != 0 || *end != '\0' ||
+			    parity < 1 || parity > VDEV_RAIDY_MAXPARITY) {
 				return (0);
 			}
 		}
@@ -1235,6 +1264,7 @@ is_grouping(const char *type, int *mindev, int *maxdev)
 	int nparity;
 
 	if (strncmp(type, VDEV_TYPE_RAIDZ, strlen(VDEV_TYPE_RAIDZ)) == 0 ||
+	    strncmp(type, VDEV_TYPE_RAIDY, strlen(VDEV_TYPE_RAIDY)) == 0 ||
 	    strncmp(type, VDEV_TYPE_DRAID, strlen(VDEV_TYPE_DRAID)) == 0) {
 		nparity = get_parity(type);
 		if (nparity == 0)
@@ -1247,6 +1277,9 @@ is_grouping(const char *type, int *mindev, int *maxdev)
 		if (strncmp(type, VDEV_TYPE_RAIDZ,
 		    strlen(VDEV_TYPE_RAIDZ)) == 0) {
 			return (VDEV_TYPE_RAIDZ);
+		} else if (strncmp(type, VDEV_TYPE_RAIDY,
+		    strlen(VDEV_TYPE_RAIDY)) == 0) {
+			return (VDEV_TYPE_RAIDY);
 		} else {
 			return (VDEV_TYPE_DRAID);
 		}
@@ -1477,9 +1510,9 @@ construct_spec(nvlist_t *props, int argc, char **argv)
 		nv = NULL;
 
 		/*
-		 * If it's a mirror, raidz, or draid the subsequent arguments
-		 * are its leaves -- until we encounter the next mirror,
-		 * raidz or draid.
+		 * If it's a mirror, raidz, raidy or draid the subsequent
+		 * arguments are its leaves -- until we encounter the next
+		 * mirror, raidz, raidy or draid.
 		 */
 		if ((type = is_grouping(fulltype, &mindev, &maxdev)) != NULL) {
 			nvlist_t **child = NULL;
@@ -1632,7 +1665,8 @@ construct_spec(nvlist_t *props, int argc, char **argv)
 					    ZPOOL_CONFIG_ALLOCATION_BIAS,
 					    VDEV_ALLOC_BIAS_DEDUP) == 0);
 				}
-				if (strcmp(type, VDEV_TYPE_RAIDZ) == 0) {
+				if (strcmp(type, VDEV_TYPE_RAIDZ) == 0 ||
+				    strcmp(type, VDEV_TYPE_RAIDY) == 0) {
 					verify(nvlist_add_uint64(nv,
 					    ZPOOL_CONFIG_NPARITY,
 					    mindev - 1) == 0);

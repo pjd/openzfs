@@ -984,6 +984,7 @@ zpool_name_valid(libzfs_handle_t *hdl, boolean_t isopen, const char *pool)
 	    (strncmp(pool, "mirror", 6) == 0 ||
 	    strncmp(pool, "raidz", 5) == 0 ||
 	    strncmp(pool, "draid", 5) == 0 ||
+	    strncmp(pool, "raidy", 5) == 0 ||
 	    strncmp(pool, "spare", 5) == 0 ||
 	    strcmp(pool, "log") == 0)) {
 		if (hdl != NULL)
@@ -1266,6 +1267,30 @@ zpool_is_draid_spare(const char *name)
 }
 
 /*
+ * Check if vdev list contains a raidy vdev.
+ */
+static boolean_t
+zpool_has_raidy_vdev(nvlist_t *nvroot)
+{
+	nvlist_t **child;
+	uint_t children;
+
+	if (nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
+	    &child, &children) == 0) {
+		for (uint_t c = 0; c < children; c++) {
+			char *type;
+
+			if (nvlist_lookup_string(child[c],
+			    ZPOOL_CONFIG_TYPE, &type) == 0 &&
+			    strcmp(type, VDEV_TYPE_RAIDY) == 0) {
+				return (B_TRUE);
+			}
+		}
+	}
+	return (B_FALSE);
+}
+
+/*
  * Create the named pool, using the provided vdev list.  It is assumed
  * that the consumer has already validated the contents of the nvlist, so we
  * don't have to worry about error semantics.
@@ -1424,6 +1449,12 @@ zpool_create(libzfs_handle_t *hdl, const char *pool, nvlist_t *nvroot,
 			    zfeature_lookup_name("draid", NULL) != 0) {
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 				    "dRAID vdevs are unsupported by the "
+				    "kernel"));
+				return (zfs_error(hdl, EZFS_BADDEV, msg));
+			} else if (zpool_has_raidy_vdev(nvroot) &&
+			    zfeature_lookup_name("raidy", NULL) != 0) {
+				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+				    "raidy vdevs are unsupported by the "
 				    "kernel"));
 				return (zfs_error(hdl, EZFS_BADDEV, msg));
 			} else {
@@ -1591,11 +1622,16 @@ zpool_add(zpool_handle_t *zhp, nvlist_t *nvroot)
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 				    "dRAID vdevs are unsupported by the "
 				    "kernel"));
+			} else if (zpool_has_raidy_vdev(nvroot) &&
+			    zfeature_lookup_name("raidy", NULL) != 0) {
+				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+				    "raidy vdevs are unsupported by the "
+				    "kernel"));
 			} else {
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 				    "invalid config; a pool with removing/"
 				    "removed vdevs does not support adding "
-				    "raidz or dRAID vdevs"));
+				    "raidz, raidy or dRAID vdevs"));
 			}
 
 			(void) zfs_error(hdl, EZFS_BADDEV, msg);
@@ -2650,13 +2686,15 @@ vdev_to_nvlist_iter(nvlist_t *nv, nvlist_t *search, boolean_t *avail_spare,
 			vdev_id = strtoull(idx, &end, 10);
 
 			/*
-			 * If we are looking for a raidz and a parity is
+			 * If we are looking for a raid and a parity is
 			 * specified, make sure it matches.
 			 */
 			int rzlen = strlen(VDEV_TYPE_RAIDZ);
+			assert(rzlen == strlen(VDEV_TYPE_RAIDY));
 			assert(rzlen == strlen(VDEV_TYPE_DRAID));
 			int typlen = strlen(type);
 			if ((strncmp(type, VDEV_TYPE_RAIDZ, rzlen) == 0 ||
+			    strncmp(type, VDEV_TYPE_RAIDY, rzlen) == 0 ||
 			    strncmp(type, VDEV_TYPE_DRAID, rzlen) == 0) &&
 			    typlen != rzlen) {
 				uint64_t vdev_parity;
@@ -2666,7 +2704,7 @@ vdev_to_nvlist_iter(nvlist_t *nv, nvlist_t *search, boolean_t *avail_spare,
 				    (typlen - rzlen) != 1) {
 					/*
 					 * Nonsense parity specified, can
-					 * never match
+					 * never match.
 					 */
 					free(type);
 					return (NULL);
@@ -2785,12 +2823,14 @@ zpool_find_vdev_by_physpath(zpool_handle_t *zhp, const char *ppath,
 }
 
 /*
- * Determine if we have an "interior" top-level vdev (i.e mirror/raidz).
+ * Determine if we have an "interior" top-level vdev
+ * (i.e mirror/raidz/raidy/draid).
  */
 static boolean_t
 zpool_vdev_is_interior(const char *name)
 {
 	if (strncmp(name, VDEV_TYPE_RAIDZ, strlen(VDEV_TYPE_RAIDZ)) == 0 ||
+	    strncmp(name, VDEV_TYPE_RAIDY, strlen(VDEV_TYPE_RAIDY)) == 0 ||
 	    strncmp(name, VDEV_TYPE_SPARE, strlen(VDEV_TYPE_SPARE)) == 0 ||
 	    strncmp(name,
 	    VDEV_TYPE_REPLACING, strlen(VDEV_TYPE_REPLACING)) == 0 ||
@@ -2912,6 +2952,7 @@ vdev_get_physpaths(nvlist_t *nv, char *physpath, size_t phypath_size,
 		}
 	} else if (strcmp(type, VDEV_TYPE_MIRROR) == 0 ||
 	    strcmp(type, VDEV_TYPE_RAIDZ) == 0 ||
+	    strcmp(type, VDEV_TYPE_RAIDY) == 0 ||
 	    strcmp(type, VDEV_TYPE_REPLACING) == 0 ||
 	    (is_spare = (strcmp(type, VDEV_TYPE_SPARE) == 0))) {
 		nvlist_t **child;
@@ -3350,8 +3391,8 @@ zpool_vdev_attach(zpool_handle_t *zhp, const char *old_disk,
 				    "cannot replace a log with a spare"));
 			} else if (rebuild) {
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-				    "only mirror and dRAID vdevs support "
-				    "sequential reconstruction"));
+				    "only mirror, dRAID and raidy vdevs "
+				    "support sequential reconstruction"));
 			} else if (zpool_is_draid_spare(new_disk)) {
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 				    "dRAID spares can only replace child "
@@ -3806,7 +3847,7 @@ zpool_vdev_remove(zpool_handle_t *zhp, const char *path)
 	case EINVAL:
 		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 		    "invalid config; all top-level vdevs must "
-		    "have the same sector size and not be raidz."));
+		    "have the same sector size and not be raidz/raidy."));
 		(void) zfs_error(hdl, EZFS_INVALCONFIG, msg);
 		break;
 
@@ -4132,9 +4173,11 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 		path = type;
 
 		/*
-		 * If it's a raidz device, we need to stick in the parity level.
+		 * If it's a raidz/raidy device, we need to stick in
+		 * the parity level.
 		 */
-		if (strcmp(path, VDEV_TYPE_RAIDZ) == 0) {
+		if (strcmp(path, VDEV_TYPE_RAIDZ) == 0 ||
+		    strcmp(path, VDEV_TYPE_RAIDY) == 0) {
 			verify(nvlist_lookup_uint64(nv, ZPOOL_CONFIG_NPARITY,
 			    &value) == 0);
 			(void) snprintf(buf, sizeof (buf), "%s%llu", path,
