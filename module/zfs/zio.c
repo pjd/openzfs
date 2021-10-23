@@ -3053,8 +3053,6 @@ zio_brt_free(zio_t *zio)
 		return (zio);
 	}
 
-	ASSERT(zio->io_child_type == ZIO_CHILD_LOGICAL);
-
 	if (!brt_entry_decref(zio->io_spa, bp)) {
 		/*
 		 * This isn't the last reference, so we cannot free the data yet.
