@@ -2141,7 +2141,7 @@ dmu_brt_readbps(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 {
 	dmu_buf_t **dbp, *dbuf;
 	dmu_buf_impl_t *db;
-	blkptr_t *bps;
+	blkptr_t *bp, *bps;
 	int error, ii, numbufs;
 
 	error = dmu_buf_hold_array(os, object, offset, length, FALSE, FTAG,
@@ -2158,8 +2158,9 @@ dmu_brt_readbps(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 	for (ii = 0; ii < numbufs; ii++) {
 		dbuf = dbp[ii];
 		db = (dmu_buf_impl_t *)dbuf;
+		bp = db->db_blkptr;
 
-		if (db->db_blkptr == NULL) {
+		if (bp == NULL) {
 			error = SET_ERROR(EAGAIN);
 			goto out;
 		}
@@ -2171,8 +2172,13 @@ dmu_brt_readbps(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 			error = SET_ERROR(EBUSY);
 			goto out;
 		}
+		if (BP_GET_TYPE(bp) != DMU_OT_PLAIN_FILE_CONTENTS &&
+		    BP_GET_TYPE(bp) != DMU_OT_ZVOL) {
+			error = SET_ERROR(EFTYPE);
+			goto out;
+		}
 
-		bps[ii] = *db->db_blkptr;
+		bps[ii] = *bp;
 	}
 
 	*nbpsp = numbufs;
