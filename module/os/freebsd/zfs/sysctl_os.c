@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 /* BEGIN CSTYLED */
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, arc, CTLFLAG_RW, 0, "ZFS adaptive replacement cache");
+SYSCTL_NODE(_vfs_zfs, OID_AUTO, brt, CTLFLAG_RW, 0, "ZFS Block Reference Table");
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, condense, CTLFLAG_RW, 0, "ZFS condense");
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, dbuf, CTLFLAG_RW, 0, "ZFS disk buf cache");
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, dbuf_cache, CTLFLAG_RW, 0, "ZFS disk buf cache");
