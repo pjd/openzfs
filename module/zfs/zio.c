@@ -3048,8 +3048,11 @@ zio_brt_free(zio_t *zio)
 
 	bp = zio->io_bp;
 
-	if (BP_GET_LEVEL(bp) > 0 ||
-	    BP_GET_TYPE(bp) != DMU_OT_PLAIN_FILE_CONTENTS) {
+	if (BP_GET_LEVEL(bp) > 0) {
+		return (zio);
+	}
+	if (BP_GET_TYPE(bp) != DMU_OT_PLAIN_FILE_CONTENTS &&
+	    BP_GET_TYPE(bp) != DMU_OT_ZVOL) {
 		return (zio);
 	}
 
