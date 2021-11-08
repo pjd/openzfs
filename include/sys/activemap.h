@@ -42,6 +42,9 @@ struct activemap *activemap_init(uint64_t mediasize, uint32_t extentsize,
     uint32_t sectorsize, uint32_t keepdirty);
 void activemap_free(struct activemap *amp);
 
+void activemap_lock(struct activemap *amp);
+void activemap_unlock(struct activemap *amp);
+
 bool activemap_write_start(struct activemap *amp, off_t offset, off_t length);
 bool activemap_write_complete(struct activemap *amp, off_t offset,
     off_t length);
@@ -65,6 +68,6 @@ off_t activemap_sync_offset(struct activemap *amp, off_t *lengthp,
     int *syncextp);
 bool activemap_need_sync(struct activemap *amp, off_t offset, off_t length);
 
-void activemap_dump(struct activemap *amp);
+void activemap_dump(const struct activemap *amp);
 
 #endif	/* !_ACTIVEMAP_H_ */

@@ -53,6 +53,7 @@
 #define	ACTIVEMAP_MAGIC	0xac71e4
 struct activemap {
 	int		 am_magic;	/* Magic value. */
+	kmutex_t	 am_lock;	/* Lock to synchronize access. */
 	off_t		 am_mediasize;	/* Media size in bytes. */
 	uint32_t	 am_extentsize;	/* Extent size in bytes,
 					   must be power of 2. */
@@ -139,6 +140,20 @@ ext2reqs(const struct activemap *amp, int ext)
 	return (((left - 1) / MAXPHYS) + 1);
 }
 
+void
+activemap_lock(struct activemap *amp)
+{
+
+	mutex_enter(&amp->am_lock);
+}
+
+void
+activemap_unlock(struct activemap *amp)
+{
+
+	mutex_exit(&amp->am_lock);
+}
+
 /*
  * Initialize activemap structure and allocate memory for internal needs.
  * Function returns 0 on success and -1 if any of the allocations failed.
@@ -158,6 +173,7 @@ activemap_init(uint64_t mediasize, uint32_t extentsize, uint32_t sectorsize,
 
 	amp = kmem_alloc(sizeof(*amp), KM_SLEEP);
 
+	mutex_init(&amp->am_lock, NULL, MUTEX_DEFAULT, NULL);
 	amp->am_mediasize = mediasize;
 	amp->am_nkeepdirty_limit = keepdirty;
 	amp->am_extentsize = extentsize;
@@ -185,6 +201,8 @@ keepdirty_find(const struct activemap *amp, int extent)
 {
 	struct keepdirty *kd;
 
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
+
 	TAILQ_FOREACH(kd, &amp->am_keepdirty, kd_next) {
 		if (kd->kd_extent == extent) {
 			break;
@@ -197,6 +215,8 @@ static bool
 keepdirty_add(struct activemap *amp, int extent)
 {
 	struct keepdirty *kd;
+
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
 
 	kd = keepdirty_find(amp, extent);
 	if (kd != NULL) {
@@ -234,6 +254,8 @@ keepdirty_fill(struct activemap *amp)
 {
 	struct keepdirty *kd;
 
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
+
 	TAILQ_FOREACH(kd, &amp->am_keepdirty, kd_next) {
 		bit_set(amp->am_diskmap, kd->kd_extent);
 	}
@@ -268,6 +290,7 @@ activemap_free(struct activemap *amp)
 	kmem_free(amp->am_diskmap, amp->am_diskmapsize);
 	kmem_free(amp->am_memmap, bitstr_size(amp->am_nextents));
 	kmem_free(amp->am_syncmap, bitstr_size(amp->am_nextents));
+	mutex_destroy(&amp->am_lock);
 	kmem_free(amp, sizeof(*amp));
 }
 
@@ -283,6 +306,7 @@ activemap_write_start(struct activemap *amp, off_t offset, off_t length)
 	int ext;
 
 	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
 	PJDLOG_ASSERT(length > 0);
 
 	modified = false;
@@ -320,6 +344,7 @@ activemap_write_complete(struct activemap *amp, off_t offset, off_t length)
 	int ext;
 
 	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
 	PJDLOG_ASSERT(length > 0);
 
 	modified = false;
@@ -356,6 +381,7 @@ activemap_extent_complete(struct activemap *amp, int extent)
 	int reqs;
 
 	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
 	PJDLOG_ASSERT(extent >= 0 && extent < amp->am_nextents);
 
 	modified = false;
@@ -381,6 +407,7 @@ activemap_ndirty(const struct activemap *amp)
 {
 
 	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
 
 	return (amp->am_ndirty);
 }
@@ -394,6 +421,7 @@ activemap_differ(const struct activemap *amp)
 {
 
 	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
 
 	return (memcmp(amp->am_diskmap, amp->am_memmap,
 	    amp->am_mapsize) != 0);
@@ -433,6 +461,7 @@ activemap_copyin(struct activemap *amp, const unsigned char *buf, size_t size)
 	int ext;
 
 	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
 	PJDLOG_ASSERT(size >= amp->am_mapsize);
 
 	memcpy(amp->am_diskmap, buf, amp->am_mapsize);
@@ -472,6 +501,7 @@ activemap_merge(struct activemap *amp, const unsigned char *buf, size_t size)
 	int ext;
 
 	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
 	PJDLOG_ASSERT(size >= amp->am_mapsize);
 
 	bit_ffs(remmap, amp->am_nextents, &ext);
@@ -512,6 +542,7 @@ activemap_bitmap(struct activemap *amp, size_t *sizep)
 {
 
 	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
 
 	if (sizep != NULL)
 		*sizep = amp->am_diskmapsize;
@@ -536,8 +567,9 @@ activemap_calc_ondisk_size(uint64_t mediasize, uint32_t extentsize,
 	PJDLOG_ASSERT(powerof2(sectorsize));
 
 	nextents = ((mediasize - 1) / extentsize) + 1;
-	mapsize = bitstr_size(nextents);
-	return (roundup2(mapsize, sectorsize));
+	mapsize = roundup2(bitstr_size(nextents), sectorsize);
+
+	return (mapsize);
 }
 
 /*
@@ -549,6 +581,7 @@ activemap_sync_rewind(struct activemap *amp)
 	int ext;
 
 	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
 
 	bit_ffs(amp->am_syncmap, amp->am_nextents, &ext);
 	if (ext == -1) {
@@ -572,6 +605,7 @@ activemap_sync_offset(struct activemap *amp, off_t *lengthp, int *syncextp)
 	int ext;
 
 	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
 	PJDLOG_ASSERT(lengthp != NULL);
 	PJDLOG_ASSERT(syncextp != NULL);
 
@@ -643,6 +677,7 @@ activemap_need_sync(struct activemap *amp, off_t offset, off_t length)
 	int ext;
 
 	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
 
 	modified = false;
 	end = offset + length - 1;
@@ -666,10 +701,13 @@ activemap_need_sync(struct activemap *amp, off_t offset, off_t length)
 }
 
 void
-activemap_dump(struct activemap *amp)
+activemap_dump(const struct activemap *amp)
 {
 	char *memmap, *diskmap, *syncmap, *keepmap;
 	int bit;
+
+	PJDLOG_ASSERT(amp->am_magic == ACTIVEMAP_MAGIC);
+	PJDLOG_ASSERT(MUTEX_HELD(&amp->am_lock));
 
 	memmap = kmem_alloc(amp->am_nextents + 1, KM_SLEEP);
 	diskmap = kmem_alloc(amp->am_nextents + 1, KM_SLEEP);
