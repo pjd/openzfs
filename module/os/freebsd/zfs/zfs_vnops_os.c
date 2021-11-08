@@ -927,8 +927,8 @@ sys_fclonefile(struct thread *td, void *arg)
  * The `sysent' for the new syscall
  */
 static struct sysent fclonefile_sysent = {
-	4,		/* sy_narg */
-	sys_fclonefile	/* sy_call */
+	.sy_narg = 4,
+	.sy_call = sys_fclonefile
 };
 
 /*
@@ -1426,7 +1426,7 @@ zfs_lookup_lock(vnode_t *dvp, vnode_t *vp, const char *name, int lkflags)
 /* ARGSUSED */
 static int
 zfs_lookup(vnode_t *dvp, const char *nm, vnode_t **vpp,
-    struct componentname *cnp, int nameiop, cred_t *cr, kthread_t *td,
+    struct componentname *cnp, int nameiop, cred_t *cr,
     int flags, boolean_t cached)
 {
 	znode_t *zdp = VTOZ(dvp);
@@ -1989,7 +1989,6 @@ zfs_lookup_internal(znode_t *dzp, const char *name, vnode_t **vpp,
 	cnp->cn_flags = ISLASTCN | SAVENAME;
 	cnp->cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
 	cnp->cn_cred = kcred;
-	cnp->cn_thread = curthread;
 
 	if (zfsvfs->z_use_namecache && !zfsvfs->z_replay) {
 		struct vop_lookup_args a;
@@ -2001,7 +2000,7 @@ zfs_lookup_internal(znode_t *dzp, const char *name, vnode_t **vpp,
 		error = vfs_cache_lookup(&a);
 	} else {
 		error = zfs_lookup(ZTOV(dzp), name, vpp, cnp, nameiop, kcred,
-		    curthread, 0, B_FALSE);
+		    0, B_FALSE);
 	}
 #ifdef ZFS_DEBUG
 	if (error) {
@@ -5244,7 +5243,7 @@ zfs_freebsd_lookup(struct vop_lookup_args *ap, boolean_t cached)
 	strlcpy(nm, cnp->cn_nameptr, MIN(cnp->cn_namelen + 1, sizeof (nm)));
 
 	return (zfs_lookup(ap->a_dvp, nm, ap->a_vpp, cnp, cnp->cn_nameiop,
-	    cnp->cn_cred, cnp->cn_thread, 0, cached));
+	    cnp->cn_cred, 0, cached));
 }
 
 static int
@@ -6001,7 +6000,7 @@ zfs_getextattr_dir(struct vop_getextattr_args *ap, const char *attrname)
 	vnode_t *xvp = NULL, *vp;
 	int error, flags;
 
-	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred, td,
+	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred,
 	    LOOKUP_XATTR, B_FALSE);
 	if (error != 0)
 		return (error);
@@ -6112,12 +6111,11 @@ struct vop_deleteextattr {
 static int
 zfs_deleteextattr_dir(struct vop_deleteextattr_args *ap, const char *attrname)
 {
-	struct thread *td = ap->a_td;
 	struct nameidata nd;
 	vnode_t *xvp = NULL, *vp;
 	int error;
 
-	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred, td,
+	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred,
 	    LOOKUP_XATTR, B_FALSE);
 	if (error != 0)
 		return (error);
@@ -6245,7 +6243,7 @@ zfs_setextattr_dir(struct vop_setextattr_args *ap, const char *attrname)
 	vnode_t *xvp = NULL, *vp;
 	int error, flags;
 
-	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred, td,
+	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred,
 	    LOOKUP_XATTR | CREATE_XATTR_DIR, B_FALSE);
 	if (error != 0)
 		return (error);
@@ -6394,7 +6392,7 @@ zfs_listextattr_dir(struct vop_listextattr_args *ap, const char *attrprefix)
 	vnode_t *xvp = NULL, *vp;
 	int error, eof;
 
-	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred, td,
+	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred,
 	    LOOKUP_XATTR, B_FALSE);
 	if (error != 0) {
 		/*
