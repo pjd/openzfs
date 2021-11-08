@@ -1177,13 +1177,13 @@ brt_unload(spa_t *spa)
 {
 	brt_t *brt = spa->spa_brt;
 
-	ASSERT(brt != NULL);
-
-	brt_vdevs_free(brt);
-	brt_table_free(brt);
-	mutex_destroy(&brt->brt_lock);
-	kmem_free(brt, sizeof(*brt));
-	spa->spa_brt = NULL;
+	if (brt != NULL) {
+		brt_vdevs_free(brt);
+		brt_table_free(brt);
+		mutex_destroy(&brt->brt_lock);
+		kmem_free(brt, sizeof(*brt));
+		spa->spa_brt = NULL;
+	}
 }
 
 #ifdef TODO
