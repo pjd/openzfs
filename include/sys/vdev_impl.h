@@ -144,6 +144,8 @@ struct vdev_cache_entry {
 struct vdev_cache {
 	avl_tree_t	vc_offset_tree;
 	avl_tree_t	vc_lastused_tree;
+	uint64_t	vc_max;
+	uint64_t	vc_size;
 	kmutex_t	vc_lock;
 };
 

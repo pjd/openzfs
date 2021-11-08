@@ -160,7 +160,7 @@ vdev_cache_allocate(zio_t *zio)
 
 	ASSERT(MUTEX_HELD(&vc->vc_lock));
 
-	if (zfs_vdev_cache_size == 0)
+	if (vc->vc_size == 0)
 		return (NULL);
 
 	/*
@@ -168,7 +168,7 @@ vdev_cache_allocate(zio_t *zio)
 	 * evict the oldest entry (LRU).
 	 */
 	if ((avl_numnodes(&vc->vc_lastused_tree) << zfs_vdev_cache_bshift) >
-	    zfs_vdev_cache_size) {
+	    vc->vc_size) {
 		ve = avl_first(&vc->vc_lastused_tree);
 		if (ve->ve_fill_io != NULL)
 			return (NULL);
@@ -251,17 +251,20 @@ boolean_t
 vdev_cache_read(zio_t *zio)
 {
 	vdev_cache_t *vc = &zio->io_vd->vdev_cache;
-	vdev_cache_entry_t *ve, *ve_search;
+	vdev_cache_entry_t *ve, ve_search;
 	uint64_t cache_offset = P2ALIGN(zio->io_offset, VCBS);
 	zio_t *fio;
 	uint64_t cache_phase __maybe_unused = P2PHASE(zio->io_offset, VCBS);
 
 	ASSERT3U(zio->io_type, ==, ZIO_TYPE_READ);
 
+	if (vc->vc_size == 0)
+		return (B_FALSE);
+
 	if (zio->io_flags & ZIO_FLAG_DONT_CACHE)
 		return (B_FALSE);
 
-	if (zio->io_size > zfs_vdev_cache_max)
+	if (zio->io_size > vc->vc_max)
 		return (B_FALSE);
 
 	/*
@@ -274,10 +277,8 @@ vdev_cache_read(zio_t *zio)
 
 	mutex_enter(&vc->vc_lock);
 
-	ve_search = kmem_alloc(sizeof (vdev_cache_entry_t), KM_SLEEP);
-	ve_search->ve_offset = cache_offset;
-	ve = avl_find(&vc->vc_offset_tree, ve_search, NULL);
-	kmem_free(ve_search, sizeof (vdev_cache_entry_t));
+	ve_search.ve_offset = cache_offset;
+	ve = avl_find(&vc->vc_offset_tree, &ve_search, NULL);
 
 	if (ve != NULL) {
 		if (ve->ve_missed_update) {
@@ -339,6 +340,9 @@ vdev_cache_write(zio_t *zio)
 
 	ASSERT3U(zio->io_type, ==, ZIO_TYPE_WRITE);
 
+	if (vc->vc_size == 0)
+		return;
+
 	mutex_enter(&vc->vc_lock);
 
 	ve_search.ve_offset = min_offset;
@@ -376,11 +380,26 @@ vdev_cache_purge(vdev_t *vd)
 }
 
 void
+vdev_cache_set(vdev_t *vd, uint64_t max, uint64_t size)
+{
+	vdev_cache_t *vc = &vd->vdev_cache;
+
+	ASSERT3U(max, >, 0);
+	ASSERT3U(size, >, 0);
+
+	atomic_store_64(&vc->vc_max, max);
+	atomic_store_64(&vc->vc_size, size);
+}
+
+void
 vdev_cache_init(vdev_t *vd)
 {
 	vdev_cache_t *vc = &vd->vdev_cache;
 
 	mutex_init(&vc->vc_lock, NULL, MUTEX_DEFAULT, NULL);
+
+	vc->vc_max = zfs_vdev_cache_max;
+	vc->vc_size = zfs_vdev_cache_size;
 
 	avl_create(&vc->vc_offset_tree, vdev_cache_offset_compare,
 	    sizeof (vdev_cache_entry_t),

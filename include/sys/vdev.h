@@ -162,6 +162,7 @@ extern void vdev_cache_fini(vdev_t *vd);
 extern boolean_t vdev_cache_read(zio_t *zio);
 extern void vdev_cache_write(zio_t *zio);
 extern void vdev_cache_purge(vdev_t *vd);
+extern void vdev_cache_set(vdev_t *vd, uint64_t max, uint64_t size);
 
 extern void vdev_queue_init(vdev_t *vd);
 extern void vdev_queue_fini(vdev_t *vd);
