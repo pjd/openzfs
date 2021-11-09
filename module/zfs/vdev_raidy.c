@@ -1813,7 +1813,7 @@ raidy_activemap_flush(vdev_t *vd, ulong_t *needsync)
 
 	activemap_lock(vdry->vd_activemap);
 	ondiskmap = activemap_bitmap(vdry->vd_activemap, &ondiskmapsize);
-activemap_dump(vdry->vd_activemap);
+//activemap_dump(vdry->vd_activemap);
 
 	for (int idx = 0; idx < vd->vdev_children; idx++) {
 		if (needsync == NULL || BT_TEST(needsync, idx)) {
@@ -1867,7 +1867,7 @@ raidy_activemap_read_done(zio_t *zio)
 
 	activemap_lock(vdry->vd_activemap);
 	activemap_merge(vdry->vd_activemap, buf, bufsize);
-activemap_dump(vdry->vd_activemap);
+//activemap_dump(vdry->vd_activemap);
 	activemap_unlock(vdry->vd_activemap);
 }
 
@@ -1928,7 +1928,7 @@ RYD("ACTIVEMAP extent=%d DONE", syncext);
 				raidy_activemap_flush(vd, NULL);
 				activemap_lock(vdry->vd_activemap);
 			}
-activemap_dump(vdry->vd_activemap);
+//activemap_dump(vdry->vd_activemap);
 		}
 		if (offset == -1) {
 RYD("ACTIVEMAP SYNC DONE");
@@ -1936,7 +1936,7 @@ RYD("ACTIVEMAP SYNC DONE");
 		}
 RYD("ACTIVEMAP row %jd,%jd needs sync.", offset, length);
 	}
-activemap_dump(vdry->vd_activemap);
+//activemap_dump(vdry->vd_activemap);
 	activemap_unlock(vdry->vd_activemap);
 }
 
