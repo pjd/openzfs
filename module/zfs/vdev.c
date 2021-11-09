@@ -53,7 +53,6 @@
 #include <sys/arc.h>
 #include <sys/zil.h>
 #include <sys/dsl_scan.h>
-#include <sys/vdev_raidz.h>
 #include <sys/abd.h>
 #include <sys/vdev_initialize.h>
 #include <sys/vdev_trim.h>
@@ -217,6 +216,7 @@ vdev_dbgmsg_print_tree(vdev_t *vd, int indent)
 static vdev_ops_t *vdev_ops_table[] = {
 	&vdev_root_ops,
 	&vdev_raidz_ops,
+	&vdev_raidy_ops,
 	&vdev_draid_ops,
 	&vdev_draid_spare_ops,
 	&vdev_mirror_ops,
@@ -761,10 +761,15 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 		}
 
 		/* spa_vdev_add() expects feature to be enabled */
-		if (ops == &vdev_draid_ops &&
-		    spa->spa_load_state != SPA_LOAD_CREATE &&
-		    !spa_feature_is_enabled(spa, SPA_FEATURE_DRAID)) {
-			return (SET_ERROR(ENOTSUP));
+		if (spa->spa_load_state != SPA_LOAD_CREATE) {
+			if (ops == &vdev_draid_ops &&
+			    !spa_feature_is_enabled(spa, SPA_FEATURE_DRAID)) {
+				return (SET_ERROR(ENOTSUP));
+			}
+			if (ops == &vdev_raidy_ops &&
+			    !spa_feature_is_enabled(spa, SPA_FEATURE_RAIDY)) {
+				return (SET_ERROR(ENOTSUP));
+			}
 		}
 	}
 
@@ -3115,7 +3120,7 @@ vdev_dtl_reassess(vdev_t *vd, uint64_t txg, uint64_t scrub_txg,
 		if (t == DTL_PARTIAL)
 			minref = 1;			/* i.e. non-zero */
 		else if (vdev_get_nparity(vd) != 0)
-			minref = vdev_get_nparity(vd) + 1; /* RAID-Z, dRAID */
+			minref = vdev_get_nparity(vd) + 1; /* RAIDZ, RAIDY, dRAID */
 		else
 			minref = vd->vdev_children;	/* any kind of mirror */
 		space_reftree_create(&reftree);
@@ -5358,9 +5363,9 @@ vdev_xlate_walk(vdev_t *vd, const range_seg64_t *logical_rs,
 		vdev_xlate(vd, &iter_rs, &physical_rs, &remain_rs);
 
 		/*
-		 * With raidz and dRAID, it's possible that the logical range
-		 * does not live on this leaf vdev. Only when there is a non-
-		 * zero physical size call the provided function.
+		 * With raidz, raidy and dRAID, it's possible that the logical
+		 * range does not live on this leaf vdev. Only when there is a
+		 * non-zero physical size call the provided function.
 		 */
 		if (!vdev_xlate_is_empty(&physical_rs))
 			func(arg, &physical_rs);

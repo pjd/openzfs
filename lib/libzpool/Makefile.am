@@ -135,6 +135,7 @@ KERNEL_C = \
 	vdev_mirror.c \
 	vdev_missing.c \
 	vdev_queue.c \
+	vdev_raidy.c \
 	vdev_raidz.c \
 	vdev_raidz_math_aarch64_neon.c \
 	vdev_raidz_math_aarch64_neonx2.c \

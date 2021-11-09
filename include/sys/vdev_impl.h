@@ -600,6 +600,7 @@ extern void vdev_dirty_leaves(vdev_t *vd, int flags, uint64_t txg);
 extern vdev_ops_t vdev_root_ops;
 extern vdev_ops_t vdev_mirror_ops;
 extern vdev_ops_t vdev_replacing_ops;
+extern vdev_ops_t vdev_raidy_ops;
 extern vdev_ops_t vdev_raidz_ops;
 extern vdev_ops_t vdev_draid_ops;
 extern vdev_ops_t vdev_draid_spare_ops;

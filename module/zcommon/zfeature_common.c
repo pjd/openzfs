@@ -603,6 +603,10 @@ zpool_feature_init(void)
 	    "com.fudosecurity:block_cloning", "block_cloning",
 	    "Block cloning through fclonefile(2) system call.",
 	    ZFEATURE_FLAG_READONLY_COMPAT, ZFEATURE_TYPE_BOOLEAN, NULL);
+
+	zfeature_register(SPA_FEATURE_RAIDY,
+	    "com.fudosecurity:raidy", "raidy", "Support for the basic RAID",
+	    ZFEATURE_FLAG_MOS, ZFEATURE_TYPE_BOOLEAN, NULL);
 }
 
 #if defined(_KERNEL)

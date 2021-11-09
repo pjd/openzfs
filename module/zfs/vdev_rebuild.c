@@ -67,6 +67,7 @@
  *   - Sequential reconstruction is not possible on RAIDZ due to its
  *     variable stripe width.  Note dRAID uses a fixed stripe width which
  *     avoids this issue, but comes at the expense of some usable capacity.
+ *     TODO: RAIDY
  *
  *   - Block checksums are not verified during sequential reconstruction.
  *     Similar to traditional RAID the parity/mirror data is reconstructed
@@ -505,6 +506,7 @@ vdev_rebuild_blkptr_init(blkptr_t *bp, vdev_t *vd, uint64_t start,
     uint64_t asize)
 {
 	ASSERT(vd->vdev_ops == &vdev_draid_ops ||
+	    vd->vdev_ops == &vdev_raidy_ops ||
 	    vd->vdev_ops == &vdev_mirror_ops ||
 	    vd->vdev_ops == &vdev_replacing_ops ||
 	    vd->vdev_ops == &vdev_spare_ops);
@@ -641,7 +643,7 @@ vdev_rebuild_ranges(vdev_rebuild_t *vr)
 			/*
 			 * Split range into legally-sized logical chunks
 			 * given the constraints of the top-level vdev
-			 * being rebuilt (dRAID or mirror).
+			 * being rebuilt (dRAID, RAIDY or mirror).
 			 */
 			ASSERT3P(vd->vdev_ops, !=, NULL);
 			chunk_size = vd->vdev_ops->vdev_op_rebuild_asize(vd,

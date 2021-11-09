@@ -1495,7 +1495,7 @@ zio_vdev_delegated_io(vdev_t *vd, uint64_t offset, abd_t *data, uint64_t size,
 {
 	zio_t *zio;
 
-	ASSERT(vd->vdev_ops->vdev_op_leaf);
+	ASSERT(vd->vdev_ops->vdev_op_leaf || vd->vdev_ops == &vdev_raidy_ops);
 
 	zio = zio_create(NULL, vd->vdev_spa, 0, NULL,
 	    data, size, size, done, private, type, priority,
@@ -3887,6 +3887,7 @@ zio_vdev_io_start(zio_t *zio)
 	    zio->io_txg != 0 &&	/* not a delegated i/o */
 	    vd->vdev_ops != &vdev_indirect_ops &&
 	    vd->vdev_top->vdev_ops != &vdev_draid_ops &&
+	    vd->vdev_top->vdev_ops != &vdev_raidy_ops && /* TODO: ??? */
 	    !vdev_dtl_contains(vd, DTL_PARTIAL, zio->io_txg, 1)) {
 		ASSERT(zio->io_type == ZIO_TYPE_WRITE);
 		zio_vdev_io_bypass(zio);
@@ -3898,7 +3899,8 @@ zio_vdev_io_start(zio_t *zio)
 	 * excluded since they dispatch the I/O directly to a leaf vdev after
 	 * applying the dRAID mapping.
 	 */
-	if (vd->vdev_ops->vdev_op_leaf &&
+	if ((vd->vdev_ops->vdev_op_leaf ||
+	     vd->vdev_ops == &vdev_raidy_ops) &&
 	    vd->vdev_ops != &vdev_draid_spare_ops &&
 	    (zio->io_type == ZIO_TYPE_READ ||
 	    zio->io_type == ZIO_TYPE_WRITE ||
@@ -3939,7 +3941,9 @@ zio_vdev_io_done(zio_t *zio)
 	if (zio->io_delay)
 		zio->io_delay = gethrtime() - zio->io_delay;
 
-	if (vd != NULL && vd->vdev_ops->vdev_op_leaf &&
+	if (vd != NULL &&
+	    (vd->vdev_ops->vdev_op_leaf ||
+	     vd->vdev_ops == &vdev_raidy_ops) &&
 	    vd->vdev_ops != &vdev_draid_spare_ops) {
 		vdev_queue_io_done(zio);
 

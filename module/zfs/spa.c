@@ -6612,7 +6612,7 @@ spa_vdev_add(spa_t *spa, nvlist_t *nvroot)
 			    tvd->vdev_ashift != spa->spa_max_ashift) {
 				return (spa_vdev_exit(spa, vd, txg, EINVAL));
 			}
-			/* Fail if top level vdev is raidz or a dRAID */
+			/* Fail if top level vdev is raidz, raidy or a dRAID */
 			if (vdev_get_nparity(tvd) != 0)
 				return (spa_vdev_exit(spa, vd, txg, EINVAL));
 
@@ -6790,7 +6790,7 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 		/*
 		 * For rebuilds, the top vdev must support reconstruction
 		 * using only space maps.  This means the only allowable
-		 * vdevs types are the root vdev, a mirror, or dRAID.
+		 * vdevs types are the root vdev, a mirror, a raidy or a dRAID.
 		 */
 		tvd = pvd;
 		if (pvd->vdev_top != NULL)
@@ -6798,7 +6798,8 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 
 		if (tvd->vdev_ops != &vdev_mirror_ops &&
 		    tvd->vdev_ops != &vdev_root_ops &&
-		    tvd->vdev_ops != &vdev_draid_ops) {
+		    tvd->vdev_ops != &vdev_draid_ops &&
+		    tvd->vdev_ops != &vdev_raidy_ops) {
 			return (spa_vdev_exit(spa, newrootvd, txg, ENOTSUP));
 		}
 	}
