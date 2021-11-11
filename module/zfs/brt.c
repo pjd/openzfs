@@ -30,13 +30,13 @@
 #include <sys/spa_impl.h>
 #include <sys/zio.h>
 #include <sys/brt.h>
+#include <sys/bitmap.h>
 #include <sys/zap.h>
 #include <sys/dmu_tx.h>
 #include <sys/arc.h>
 #include <sys/dsl_pool.h>
 #include <sys/dsl_scan.h>
 #include <sys/vdev_impl.h>
-#include <icp/include/sys/bitmap.h>	/* XXX */
 
 /*
  * BRT - Block Reference Table.
@@ -1177,13 +1177,13 @@ brt_unload(spa_t *spa)
 {
 	brt_t *brt = spa->spa_brt;
 
-	ASSERT(brt != NULL);
-
-	brt_vdevs_free(brt);
-	brt_table_free(brt);
-	mutex_destroy(&brt->brt_lock);
-	kmem_free(brt, sizeof(*brt));
-	spa->spa_brt = NULL;
+	if (brt != NULL) {
+		brt_vdevs_free(brt);
+		brt_table_free(brt);
+		mutex_destroy(&brt->brt_lock);
+		kmem_free(brt, sizeof(*brt));
+		spa->spa_brt = NULL;
+	}
 }
 
 #ifdef TODO
