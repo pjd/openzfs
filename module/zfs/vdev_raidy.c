@@ -57,9 +57,7 @@
 #endif
 #define	LOGIO	131072
 
-//#define	RAIDY_STRIPESIZE	(16 * 1024 * 1024)
-#define	RAIDY_STRIPESIZE	(32 * 1024)
-//#define	RAIDY_STRIPESIZE	(4096)
+#define	RAIDY_STRIPESIZE	(1024 * 1024)
 
 static uint32_t raidy_ksp_refcnt;
 kstat_t	*raidy_ksp = NULL;
