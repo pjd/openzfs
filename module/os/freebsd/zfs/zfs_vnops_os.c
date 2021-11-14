@@ -5247,7 +5247,7 @@ zfs_freebsd_lookup(struct vop_lookup_args *ap, boolean_t cached)
 	strlcpy(nm, cnp->cn_nameptr, MIN(cnp->cn_namelen + 1, sizeof (nm)));
 
 	return (zfs_lookup(ap->a_dvp, nm, ap->a_vpp, cnp, cnp->cn_nameiop,
-	    cnp->cn_cred, curthread, 0, cached));
+	    cnp->cn_cred, 0, cached));
 }
 
 static int
