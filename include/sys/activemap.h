@@ -36,6 +36,18 @@
 
 #include <sys/types.h>
 
+#ifdef _KERNEL
+#define	false	0
+#define	true	1
+
+#define	bool	_Bool
+#if __STDC_VERSION__ < 199901L && __GNUC__ < 3 && !defined(__INTEL_COMPILER)
+typedef	int	_Bool;
+#endif
+#else
+#include <stdbool.h>
+#endif
+
 struct activemap;
 
 struct activemap *activemap_init(uint64_t mediasize, uint32_t extentsize,
