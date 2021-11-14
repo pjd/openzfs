@@ -51,6 +51,7 @@ KERNEL_C = \
 	zprop_common.c \
 	abd.c \
 	abd_os.c \
+	activemap.c \
 	aggsum.c \
 	arc.c \
 	arc_os.c \
