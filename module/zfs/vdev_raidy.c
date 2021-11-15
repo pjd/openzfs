@@ -2214,8 +2214,8 @@ vdev_raidy_io_start_write_read(zio_t *zio, raidy_row_t *rr)
 	}
 
 	/* XXX */
-	flags = (zio->io_flags & ZIO_FLAG_IO_ALLOCATING);
-	zio->io_flags &= ~ZIO_FLAG_IO_ALLOCATING;
+	flags = (zio->io_flags & (ZIO_FLAG_IO_ALLOCATING | ZIO_FLAG_DONT_CACHE));
+	zio->io_flags &= ~(ZIO_FLAG_IO_ALLOCATING | ZIO_FLAG_DONT_CACHE);
 
 	for (col = 0; col < rr->rr_ncols; col++) {
 		raidy_col_t *rc = &rr->rr_col[col];
