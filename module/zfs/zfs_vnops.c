@@ -316,8 +316,15 @@ out:
 }
 
 static void
-zfs_clear_sbits(zfsvfs_t *zfsvfs, znode_t *zp, cred_t *cr, dmu_tx_t *tx)
+zfs_write_clear_setid_bits_if_necessary(zfsvfs_t *zfsvfs, znode_t *zp,
+    cred_t *cr, boolean_t *did_check, dmu_tx_t *tx)
 {
+	ASSERT(did_check);
+	ASSERT(tx);
+
+	if (*did_check)
+		return;
+
 	zilog_t *zilog = zfsvfs->z_log;
 	const uint64_t uid = KUID_TO_SUID(ZTOUID(zp));
 
@@ -356,6 +363,8 @@ zfs_clear_sbits(zfsvfs_t *zfsvfs, znode_t *zp, cred_t *cr, dmu_tx_t *tx)
 		zfs_log_setattr(zilog, tx, TX_SETATTR, zp, &va, AT_MODE, NULL);
 	}
 	mutex_exit(&zp->z_acl_lock);
+
+	*did_check = B_TRUE;
 }
 
 /*
@@ -383,7 +392,7 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 {
 	int error = 0, error1;
 	ssize_t start_resid = zfs_uio_resid(uio);
-	boolean_t clear_sbits = B_TRUE;
+	boolean_t did_clear_setid_bits = B_FALSE;
 
 	/*
 	 * Fasttrack empty write
@@ -563,6 +572,11 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 		}
 
 		/*
+		 * NB: We must call zfs_write_clear_setid_bits_if_necessary
+		 * before committing the transaction!
+		 */
+
+		/*
 		 * If rangelock_enter() over-locked we grow the blocksize
 		 * and then reduce the lock range.  This will only happen
 		 * on the first iteration since rangelock_reduce() will
@@ -603,6 +617,8 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 			zfs_uio_fault_disable(uio, B_FALSE);
 #ifdef __linux__
 			if (error == EFAULT) {
+				zfs_write_clear_setid_bits_if_necessary(
+				    zfsvfs, zp, cr, &did_clear_setid_bits, tx);
 				dmu_tx_commit(tx);
 				/*
 				 * Account for partial writes before
@@ -625,6 +641,8 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 			 * VFS, which will handle faulting and will retry.
 			 */
 			if (error != 0 && error != EFAULT) {
+				zfs_write_clear_setid_bits_if_necessary(
+				    zfsvfs, zp, cr, &did_clear_setid_bits, tx);
 				dmu_tx_commit(tx);
 				break;
 			}
@@ -649,6 +667,11 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 			error = dmu_assign_arcbuf_by_dbuf(
 			    sa_get_db(zp->z_sa_hdl), woff, abuf, tx);
 			if (error != 0) {
+				/* XXX this might not be necessary if
+				 * dmu_assign_arcbuf_by_dbuf is guaranteed
+				 * to be atomic */
+				zfs_write_clear_setid_bits_if_necessary(
+				    zfsvfs, zp, cr, &did_clear_setid_bits, tx);
 				dmu_return_arcbuf(abuf);
 				dmu_tx_commit(tx);
 				break;
@@ -674,10 +697,8 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 			break;
 		}
 
-		if (clear_sbits) {
-			zfs_clear_sbits(zfsvfs, zp, cr, tx);
-			clear_sbits = B_FALSE;
-		}
+		zfs_write_clear_setid_bits_if_necessary(zfsvfs, zp, cr,
+		    &did_clear_setid_bits, tx);
 
 		zfs_tstamp_update_setup(zp, CONTENT_MODIFIED, mtime, ctime);
 
@@ -703,8 +724,14 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 			/* Avoid clobbering EFAULT. */
 			error = error1;
 
+		/*
+		 * NB: During replay, the TX_SETATTR record logged by
+		 * zfs_write_clear_setid_bits_if_necessary must precede
+		 * any of the TX_WRITE records logged here.
+		 */
 		zfs_log_write(zilog, tx, TX_WRITE, zp, woff, tx_bytes, ioflag,
 		    NULL, NULL);
+
 		dmu_tx_commit(tx);
 
 		if (error != 0)
