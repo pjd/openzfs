@@ -315,6 +315,49 @@ out:
 	return (error);
 }
 
+static void
+zfs_clear_sbits(zfsvfs_t *zfsvfs, znode_t *zp, cred_t *cr, dmu_tx_t *tx)
+{
+	zilog_t *zilog = zfsvfs->z_log;
+	const uint64_t uid = KUID_TO_SUID(ZTOUID(zp));
+
+	/*
+	 * Clear Set-UID/Set-GID bits on successful write if not
+	 * privileged and at least one of the execute bits is set.
+	 *
+	 * It would be nice to do this after all writes have
+	 * been done, but that would still expose the ISUID/ISGID
+	 * to another app after the partial write is committed.
+	 *
+	 * Note: we don't call zfs_fuid_map_id() here because
+	 * user 0 is not an ephemeral uid.
+	 */
+	mutex_enter(&zp->z_acl_lock);
+	if ((zp->z_mode & (S_IXUSR | (S_IXUSR >> 3) | (S_IXUSR >> 6))) != 0 &&
+	    (zp->z_mode & (S_ISUID | S_ISGID)) != 0 &&
+	    secpolicy_vnode_setid_retain(zp, cr,
+	    ((zp->z_mode & S_ISUID) != 0 && uid == 0)) != 0) {
+		uint64_t newmode;
+		vattr_t va;
+
+		zp->z_mode &= ~(S_ISUID | S_ISGID);
+		newmode = zp->z_mode;
+		(void) sa_update(zp->z_sa_hdl, SA_ZPL_MODE(zfsvfs),
+		    (void *)&newmode, sizeof (uint64_t), tx);
+
+		/*
+		 * Make sure SUID/SGID bits will be removed when we replay the
+		 * log.
+		 */
+		bzero(&va, sizeof (va));
+		va.va_mask = AT_MODE;
+		va.va_nodeid = zp->z_id;
+		va.va_mode = newmode;
+		zfs_log_setattr(zilog, tx, TX_SETATTR, zp, &va, AT_MODE, NULL);
+	}
+	mutex_exit(&zp->z_acl_lock);
+}
+
 /*
  * Write the bytes to a file.
  *
@@ -340,6 +383,7 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 {
 	int error = 0, error1;
 	ssize_t start_resid = zfs_uio_resid(uio);
+	boolean_t clear_sbits = B_TRUE;
 
 	/*
 	 * Fasttrack empty write
@@ -630,30 +674,10 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 			break;
 		}
 
-		/*
-		 * Clear Set-UID/Set-GID bits on successful write if not
-		 * privileged and at least one of the execute bits is set.
-		 *
-		 * It would be nice to do this after all writes have
-		 * been done, but that would still expose the ISUID/ISGID
-		 * to another app after the partial write is committed.
-		 *
-		 * Note: we don't call zfs_fuid_map_id() here because
-		 * user 0 is not an ephemeral uid.
-		 */
-		mutex_enter(&zp->z_acl_lock);
-		if ((zp->z_mode & (S_IXUSR | (S_IXUSR >> 3) |
-		    (S_IXUSR >> 6))) != 0 &&
-		    (zp->z_mode & (S_ISUID | S_ISGID)) != 0 &&
-		    secpolicy_vnode_setid_retain(zp, cr,
-		    ((zp->z_mode & S_ISUID) != 0 && uid == 0)) != 0) {
-			uint64_t newmode;
-			zp->z_mode &= ~(S_ISUID | S_ISGID);
-			newmode = zp->z_mode;
-			(void) sa_update(zp->z_sa_hdl, SA_ZPL_MODE(zfsvfs),
-			    (void *)&newmode, sizeof (uint64_t), tx);
+		if (clear_sbits) {
+			zfs_clear_sbits(zfsvfs, zp, cr, tx);
+			clear_sbits = B_FALSE;
 		}
-		mutex_exit(&zp->z_acl_lock);
 
 		zfs_tstamp_update_setup(zp, CONTENT_MODIFIED, mtime, ctime);
 
