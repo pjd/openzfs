@@ -25,6 +25,7 @@ ZFS_MODULE_CFLAGS += -I$(zfs_include)/os/linux/kernel
 ZFS_MODULE_CFLAGS += -I$(zfs_include)/os/linux/spl
 ZFS_MODULE_CFLAGS += -I$(zfs_include)/os/linux/zfs
 ZFS_MODULE_CFLAGS += -I$(zfs_include)
+ZFS_MODULE_CFLAGS += -I$(icp_include)
 ZFS_MODULE_CPPFLAGS += -D_KERNEL
 ZFS_MODULE_CPPFLAGS += @KERNEL_DEBUG_CPPFLAGS@
 
@@ -298,6 +299,7 @@ ZFS_OBJS := \
 	bpobj.o \
 	bptree.o \
 	bqueue.o \
+	brt.o \
 	btree.o \
 	dataset_kstats.o \
 	dbuf.o \

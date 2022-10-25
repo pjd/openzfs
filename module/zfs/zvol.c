@@ -482,6 +482,22 @@ zvol_replay_write(void *arg1, void *arg2, boolean_t byteswap)
 	return (error);
 }
 
+/*
+ * Replay a TX_CLONE_RANGE ZIL transaction that didn't get committed
+ * after a system failure.
+ */
+static int
+zvol_replay_clone_range(void *arg1, void *arg2, boolean_t byteswap)
+{
+#ifdef TODO
+	zvol_state_t *zv = arg1;
+	lr_clone_range_t *lr = arg2;
+#endif
+
+	/* TODO */
+	return (SET_ERROR(ENOTSUP));
+}
+
 static int
 zvol_replay_err(void *arg1, void *arg2, boolean_t byteswap)
 {
@@ -516,6 +532,7 @@ zil_replay_func_t *const zvol_replay_vector[TX_MAX_TYPE] = {
 	zvol_replay_err,	/* TX_SETSAXATTR */
 	zvol_replay_err,	/* TX_RENAME_EXCHANGE */
 	zvol_replay_err,	/* TX_RENAME_WHITEOUT */
+	zvol_replay_clone_range	/* TX_CLONE_RANGE */
 };
 
 /*
