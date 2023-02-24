@@ -53,7 +53,7 @@
  * - Deduplication is automatic and Block Cloning is not - one has to use a
  *   dedicated system call(s) to clone the given file/blocks.
  * - Deduplication keeps all data blocks in its table, even those referenced
- *   just ones. Block Cloning creates an entry in its tables only when there
+ *   just once. Block Cloning creates an entry in its tables only when there
  *   are at least two references to the given data block. If the block was
  *   never explicitly cloned or the second to last reference was dropped,
  *   there will be neither space nor performance overhead.
@@ -189,7 +189,7 @@
  *
  * Some special cases to consider and how we address them:
  * - The block we want to clone may have been created within the same
- *   transaction group as we are trying to clone. Such block has no BP allocated
+ *   transaction group that we are trying to clone. Such block has no BP allocated
  *   yet, so we wait for the current transaction group to sync.
  * - The block we want to clone may have been modified within the same
  *   transaction group. We wait for the current transaction group to sync.
@@ -204,7 +204,7 @@
  * - A file might have been deleted, but the caller still has a file descriptor
  *   open to this file and clones it.
  *
- * When we free a block we have additional step in the ZIO pipeline where we
+ * When we free a block we have an additional step in the ZIO pipeline where we
  * call the zio_brt_free() function. We then call the brt_entry_decref()
  * that loads the corresponding BRT entry (if one exists) and decreases
  * reference counter. If this is not the last reference we will stop ZIO
