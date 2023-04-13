@@ -1178,14 +1178,12 @@ zio_rewrite(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp, abd_t *data,
 }
 
 void
-zio_write_override(zio_t *zio, blkptr_t *bp, int copies, boolean_t nopwrite,
-    boolean_t brtwrite)
+zio_write_override(zio_t *zio, blkptr_t *bp, int copies, boolean_t nopwrite)
 {
 	ASSERT(zio->io_type == ZIO_TYPE_WRITE);
 	ASSERT(zio->io_child_type == ZIO_CHILD_LOGICAL);
 	ASSERT(zio->io_stage == ZIO_STAGE_OPEN);
 	ASSERT(zio->io_txg == spa_syncing_txg(zio->io_spa));
-	ASSERT(!brtwrite || !nopwrite);
 
 	/*
 	 * We must reset the io_prop to match the values that existed
@@ -1194,7 +1192,6 @@ zio_write_override(zio_t *zio, blkptr_t *bp, int copies, boolean_t nopwrite,
 	 */
 	zio->io_prop.zp_dedup = nopwrite ? B_FALSE : zio->io_prop.zp_dedup;
 	zio->io_prop.zp_nopwrite = nopwrite;
-	zio->io_prop.zp_brtwrite = brtwrite;
 	zio->io_prop.zp_copies = copies;
 	zio->io_bp_override = bp;
 }
@@ -1602,14 +1599,10 @@ zio_write_bp_init(zio_t *zio)
 		zio_prop_t *zp = &zio->io_prop;
 
 		ASSERT(bp->blk_birth != zio->io_txg);
+		ASSERT(BP_GET_DEDUP(zio->io_bp_override) == 0);
 
 		*bp = *zio->io_bp_override;
 		zio->io_pipeline = ZIO_INTERLOCK_PIPELINE;
-
-		if (zp->zp_brtwrite)
-			return (zio);
-
-		ASSERT(!BP_GET_DEDUP(zio->io_bp_override));
 
 		if (BP_IS_EMBEDDED(bp))
 			return (zio);
