@@ -690,9 +690,9 @@ typedef struct callb_cpr {
 	mutex_exit((cp)->cc_lockp);				\
 }
 
-#define	zone_dataset_visible(x, y)	(1)
 #define	INGLOBALZONE(z)			(1)
 extern uint32_t zone_get_hostid(void *zonep);
+extern int zone_dataset_visible(const char *dataset, int *write);
 
 extern char *kmem_vasprintf(const char *fmt, va_list adx);
 extern char *kmem_asprintf(const char *fmt, ...);
@@ -742,6 +742,10 @@ extern int zfs_secpolicy_snapshot_perms(const char *name, cred_t *cr);
 extern int zfs_secpolicy_rename_perms(const char *from, const char *to,
     cred_t *cr);
 extern int zfs_secpolicy_destroy_perms(const char *name, cred_t *cr);
+extern int secpolicy_nfs(const cred_t *cr);
+extern int secpolicy_smb(const cred_t *cr);
+extern int secpolicy_sys_config(const cred_t *cr, int checkonly);
+extern int secpolicy_zinject(const cred_t *cr);
 extern int secpolicy_zfs(const cred_t *cr);
 extern int secpolicy_zfs_proc(const cred_t *cr, proc_t *proc);
 extern zoneid_t getzoneid(void);
@@ -782,6 +786,22 @@ extern int kmem_cache_reap_active(void);
  */
 #define	__init
 #define	__exit
+
+/*
+ * Userland ioctl handling
+ */
+
+typedef struct zfsvfs {
+	int dummy;
+} zfsvfs_t;
+
+extern void zfs_user_ioctl_init(void);
+extern int copyinstr(const char *, char *, size_t, size_t *);
+extern int ddi_copyin(const void *, void *, size_t, int);
+extern int ddi_copyout(const void *, void *, size_t, int);
+
+#define	is_system_labeled()		(0)
+#define	groupmember(gid, cr)		(0)
 
 #endif  /* _KERNEL || _STANDALONE */
 

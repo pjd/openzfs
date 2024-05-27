@@ -316,6 +316,17 @@ zone_get_hostid(void *zonep)
 }
 
 int
+zone_dataset_visible(const char *dataset, int *write)
+{
+
+	if (dataset[0] == '\0' || dataset[0] == '/')
+		return (0);
+	if (write != NULL)
+		*write = 1;
+	return (1);
+}
+
+int
 rw_tryupgrade(krwlock_t *rwlp)
 {
 	(void) rwlp;
@@ -911,6 +922,34 @@ zfs_secpolicy_destroy_perms(const char *name, cred_t *cr)
 }
 
 int
+secpolicy_nfs(const cred_t *cr)
+{
+	(void) cr;
+	return (0);
+}
+
+int
+secpolicy_smb(const cred_t *cr)
+{
+	(void) cr;
+	return (0);
+}
+
+int
+secpolicy_sys_config(const cred_t *cr, int checkonly)
+{
+	(void) cr, (void) checkonly;
+	return (0);
+}
+
+int
+secpolicy_zinject(const cred_t *cr)
+{
+	(void) cr;
+	return (0);
+}
+
+int
 secpolicy_zfs(const cred_t *cr)
 {
 	(void) cr;
@@ -1442,6 +1481,39 @@ zfs_file_put(zfs_file_t *fp)
 {
 	abort();
 	(void) fp;
+}
+
+int
+zfs_vfs_ref(zfsvfs_t **zfvp)
+{
+
+	ASSERT(*zfvp == NULL);
+
+	return (SET_ERROR(ESRCH));
+}
+
+boolean_t
+zfs_vfs_held(zfsvfs_t *zfsvfs __unused)
+{
+	abort();
+}
+
+void
+zfs_vfs_rele(zfsvfs_t *zfsvfs __unused)
+{
+	abort();
+}
+
+int
+zfs_suspend_fs(zfsvfs_t *zfsvfs __unused)
+{
+	abort();
+}
+
+int
+zfs_resume_fs(zfsvfs_t *zfsvfs __unused)
+{
+	abort();
 }
 
 void

@@ -160,7 +160,7 @@ zone_dataset_visible(const char *dataset, int *write)
 	size_t len;
 	int ret = 0;
 
-	if (dataset[0] == '\0')
+	if (dataset[0] == '\0' || dataset[0] == '/')
 		return (0);
 	if (INGLOBALZONE(curproc)) {
 		if (write != NULL)

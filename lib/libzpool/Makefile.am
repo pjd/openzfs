@@ -11,7 +11,8 @@ CPPCHECKTARGETS += libzpool.la
 dist_libzpool_la_SOURCES = \
 	%D%/kernel.c \
 	%D%/taskq.c \
-	%D%/util.c
+	%D%/util.c \
+	%D%/zfs_user_ioctl.c
 
 nodist_libzpool_la_SOURCES = \
 	module/lua/lapi.c \
@@ -47,6 +48,8 @@ nodist_libzpool_la_SOURCES = \
 	module/os/linux/zfs/zfs_debug.c \
 	module/os/linux/zfs/zfs_racct.c \
 	module/os/linux/zfs/zio_crypt.c \
+	\
+	module/os/userland/zfs/zfs_vfsops_os.c \
 	\
 	module/zcommon/cityhash.c \
 	module/zcommon/zfeature_common.c \
@@ -175,6 +178,7 @@ nodist_libzpool_la_SOURCES = \
 	module/zfs/zfs_chksum.c \
 	module/zfs/zfs_fm.c \
 	module/zfs/zfs_fuid.c \
+	module/zfs/zfs_ioctl.c \
 	module/zfs/zfs_ratelimit.c \
 	module/zfs/zfs_rlock.c \
 	module/zfs/zfs_sa.c \
