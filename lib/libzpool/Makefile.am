@@ -46,7 +46,6 @@ nodist_libzpool_la_SOURCES = \
 	module/os/linux/zfs/vdev_label_os.c \
 	module/os/linux/zfs/zfs_debug.c \
 	module/os/linux/zfs/zfs_racct.c \
-	module/os/linux/zfs/zfs_znode.c \
 	module/os/linux/zfs/zio_crypt.c \
 	\
 	module/zcommon/cityhash.c \
@@ -179,6 +178,7 @@ nodist_libzpool_la_SOURCES = \
 	module/zfs/zfs_ratelimit.c \
 	module/zfs/zfs_rlock.c \
 	module/zfs/zfs_sa.c \
+	module/zfs/zfs_znode.c \
 	module/zfs/zil.c \
 	module/zfs/zio.c \
 	module/zfs/zio_checksum.c \

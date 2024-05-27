@@ -2435,6 +2435,74 @@ zfs_prop_set_userquota(const char *dsname, nvpair_t *pair)
 	return (err);
 }
 
+static int
+zfs_set_version(zfsvfs_t *zfsvfs, uint64_t newvers)
+{
+	int error;
+	objset_t *os = zfsvfs->z_os;
+	dmu_tx_t *tx;
+
+	if (newvers < ZPL_VERSION_INITIAL || newvers > ZPL_VERSION)
+		return (SET_ERROR(EINVAL));
+
+	if (newvers < zfsvfs->z_version)
+		return (SET_ERROR(EINVAL));
+
+	if (zfs_spa_version_map(newvers) >
+	    spa_version(dmu_objset_spa(zfsvfs->z_os)))
+		return (SET_ERROR(ENOTSUP));
+
+	tx = dmu_tx_create(os);
+	dmu_tx_hold_zap(tx, MASTER_NODE_OBJ, B_FALSE, ZPL_VERSION_STR);
+	if (newvers >= ZPL_VERSION_SA && !zfsvfs->z_use_sa) {
+		dmu_tx_hold_zap(tx, MASTER_NODE_OBJ, B_TRUE,
+		    ZFS_SA_ATTRS);
+		dmu_tx_hold_zap(tx, DMU_NEW_OBJECT, FALSE, NULL);
+	}
+	error = dmu_tx_assign(tx, TXG_WAIT);
+	if (error) {
+		dmu_tx_abort(tx);
+		return (error);
+	}
+
+	error = zap_update(os, MASTER_NODE_OBJ, ZPL_VERSION_STR,
+	    8, 1, &newvers, tx);
+
+	if (error) {
+		dmu_tx_commit(tx);
+		return (error);
+	}
+
+	if (newvers >= ZPL_VERSION_SA && !zfsvfs->z_use_sa) {
+		uint64_t sa_obj;
+
+		ASSERT3U(spa_version(dmu_objset_spa(zfsvfs->z_os)), >=,
+		    SPA_VERSION_SA);
+		sa_obj = zap_create(os, DMU_OT_SA_MASTER_NODE,
+		    DMU_OT_NONE, 0, tx);
+
+		error = zap_add(os, MASTER_NODE_OBJ,
+		    ZFS_SA_ATTRS, 8, 1, &sa_obj, tx);
+		ASSERT0(error);
+
+		VERIFY0(sa_set_sa_object(os, sa_obj));
+		sa_register_update_callback(os, zfs_sa_upgrade);
+	}
+
+	spa_history_log_internal_ds(dmu_objset_ds(os), "upgrade", tx,
+	    "from %llu to %llu", (u_longlong_t)zfsvfs->z_version,
+	    (u_longlong_t)newvers);
+
+	dmu_tx_commit(tx);
+
+	zfsvfs->z_version = newvers;
+	os->os_version = newvers;
+
+	zfs_set_fuid_feature(zfsvfs);
+
+	return (0);
+}
+
 /*
  * If the named property is one that has a special function to set its value,
  * return 0 on success and a positive error code on failure; otherwise if it is

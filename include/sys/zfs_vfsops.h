@@ -28,6 +28,19 @@
 
 #ifdef _KERNEL
 #include <sys/zfs_vfsops_os.h>
+
+extern void zfs_set_fuid_feature(struct zfsvfs *zfsvfs);
+extern int zfs_suspend_fs(zfsvfs_t *zfsvfs);
+extern int zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os);
+extern int zfsvfs_create(const char *osname, boolean_t readonly,
+    zfsvfs_t **zfvp);
+extern int zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting);
+extern void zfs_unregister_callbacks(zfsvfs_t *zfsvfs);
+
+extern boolean_t zfs_is_readonly(zfsvfs_t *zfsvfs);
+extern void zfs_change_readonly(zfsvfs_t *zfsvfs, boolean_t on);
+extern int zfs_register_callbacks(zfsvfs_t *zfsvfs);
+extern int zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting);
 #endif
 
 extern void zfsvfs_update_fromname(const char *, const char *);

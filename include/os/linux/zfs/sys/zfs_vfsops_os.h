@@ -226,17 +226,13 @@ typedef struct zfid_long {
 extern void zfs_init(void);
 extern void zfs_fini(void);
 
-extern int zfs_suspend_fs(zfsvfs_t *zfsvfs);
 extern int zfs_resume_fs(zfsvfs_t *zfsvfs, struct dsl_dataset *ds);
 extern int zfs_end_fs(zfsvfs_t *zfsvfs, struct dsl_dataset *ds);
 extern void zfs_exit_fs(zfsvfs_t *zfsvfs);
-extern int zfs_set_version(zfsvfs_t *zfsvfs, uint64_t newvers);
-extern int zfsvfs_create(const char *name, boolean_t readony, zfsvfs_t **zfvp);
 extern int zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os);
 extern void zfsvfs_free(zfsvfs_t *zfsvfs);
 extern int zfs_check_global_label(const char *dsname, const char *hexsl);
 
-extern boolean_t zfs_is_readonly(zfsvfs_t *zfsvfs);
 extern int zfs_domount(struct super_block *sb, zfs_mnt_t *zm, int silent);
 extern void zfs_preumount(struct super_block *sb);
 extern int zfs_umount(struct super_block *sb);
