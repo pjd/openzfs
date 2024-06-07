@@ -367,7 +367,7 @@ bpobj_iterate_blkptrs(bpobj_info_t *bpi, bpobj_itor_t func, void *arg,
  */
 static int
 bpobj_iterate_impl(bpobj_t *initial_bpo, bpobj_itor_t func, void *arg,
-    dmu_tx_t *tx, boolean_t free, uint64_t *bpobj_size)
+    dmu_tx_t *tx, boolean_t dofree, uint64_t *bpobj_size)
 {
 	list_t stack;
 	bpobj_info_t *bpi;
@@ -393,12 +393,12 @@ bpobj_iterate_impl(bpobj_t *initial_bpo, bpobj_itor_t func, void *arg,
 		ASSERT(MUTEX_HELD(&bpo->bpo_lock));
 		ASSERT(bpobj_is_open(bpo));
 
-		if (free)
+		if (dofree)
 			dmu_buf_will_dirty(bpo->bpo_dbuf, tx);
 
 		if (bpi->bpi_visited == B_FALSE) {
 			err = bpobj_iterate_blkptrs(bpi, func, arg, 0, tx,
-			    free);
+			    dofree);
 			bpi->bpi_visited = B_TRUE;
 			if (err != 0)
 				break;
@@ -422,7 +422,7 @@ bpobj_iterate_impl(bpobj_t *initial_bpo, bpobj_itor_t func, void *arg,
 
 			/* The initial_bpo has no parent and is not closed. */
 			if (bpi->bpi_parent != NULL) {
-				if (free) {
+				if (dofree) {
 					bpobj_t *p = bpi->bpi_parent->bpi_bpo;
 
 					ASSERT0(bpo->bpo_phys->bpo_num_blkptrs);

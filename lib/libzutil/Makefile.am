@@ -13,7 +13,8 @@ libzutil_la_SOURCES = \
 	%D%/zutil_import.c \
 	%D%/zutil_import.h \
 	%D%/zutil_nicenum.c \
-	%D%/zutil_pool.c
+	%D%/zutil_pool.c \
+	%D%/zutil_sock.c
 
 if BUILD_LINUX
 libzutil_la_SOURCES += \
@@ -31,8 +32,7 @@ endif
 libzutil_la_LIBADD = \
 	libavl.la \
 	libtpool.la \
-	libnvpair.la \
-	libspl.la
+	libnvpair.la
 
 if BUILD_LINUX
 libzutil_la_LIBADD += \

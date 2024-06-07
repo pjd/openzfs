@@ -23,7 +23,6 @@ noinst_HEADERS = \
 	%D%/spl/sys/fcntl.h \
 	%D%/spl/sys/file.h \
 	%D%/spl/sys/freebsd_rwlock.h \
-	%D%/spl/sys/idmap.h \
 	%D%/spl/sys/inttypes.h \
 	%D%/spl/sys/isa_defs.h \
 	%D%/spl/sys/kmem.h \
@@ -45,7 +44,6 @@ noinst_HEADERS = \
 	%D%/spl/sys/random.h \
 	%D%/spl/sys/rwlock.h \
 	%D%/spl/sys/sdt.h \
-	%D%/spl/sys/sid.h \
 	%D%/spl/sys/sig.h \
 	%D%/spl/sys/simd.h \
 	%D%/spl/sys/simd_aarch64.h \

@@ -803,7 +803,7 @@ zfsvfs_task_unlinked_drain(void *context, int pending __unused)
 }
 
 int
-zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
+zfsvfs_create_impl(zfsvfs_t *zfsvfs, objset_t *os)
 {
 	int error;
 
@@ -825,20 +825,15 @@ zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
 	error = zfsvfs_init(zfsvfs, os);
 	if (error != 0) {
 		dmu_objset_disown(os, B_TRUE, zfsvfs);
-		*zfvp = NULL;
-		kmem_free(zfsvfs, sizeof (zfsvfs_t));
 		return (error);
 	}
 
-	*zfvp = zfsvfs;
 	return (0);
 }
 
 void
 zfsvfs_free(zfsvfs_t *zfsvfs)
 {
-	int i;
-
 	zfs_fuid_destroy(zfsvfs);
 
 	mutex_destroy(&zfsvfs->z_znodes_lock);
@@ -847,7 +842,7 @@ zfsvfs_free(zfsvfs_t *zfsvfs)
 	ZFS_TEARDOWN_DESTROY(zfsvfs);
 	ZFS_TEARDOWN_INACTIVE_DESTROY(zfsvfs);
 	rw_destroy(&zfsvfs->z_fuid_lock);
-	for (i = 0; i != ZFS_OBJ_MTX_SZ; i++)
+	for (int i = 0; i != ZFS_OBJ_MTX_SZ; i++)
 		mutex_destroy(&zfsvfs->z_hold_mtx[i]);
 	dataset_kstats_destroy(&zfsvfs->z_kstat);
 	kmem_free(zfsvfs, sizeof (zfsvfs_t));
@@ -1751,11 +1746,6 @@ zfs_init(void)
 	printf("ZFS filesystem version: " ZPL_VERSION_STRING "\n");
 
 	/*
-	 * Initialize .zfs directory structures
-	 */
-	zfsctl_init();
-
-	/*
 	 * Initialize znode cache, vnode ops, etc...
 	 */
 	zfs_znode_init();
@@ -1788,7 +1778,6 @@ zfs_fini(void)
 #endif
 
 	taskq_destroy(zfsvfs_taskq);
-	zfsctl_fini();
 	zfs_znode_fini();
 	zfs_vnodes_adjust_back();
 }
@@ -1856,7 +1845,6 @@ zfs_get_vfs_flag_unmounted(objset_t *os)
 	return (unmounted);
 }
 
-#ifdef _KERNEL
 void
 zfsvfs_update_fromname(const char *oldname, const char *newname)
 {
@@ -1886,7 +1874,6 @@ zfsvfs_update_fromname(const char *oldname, const char *newname)
 	}
 	mtx_unlock(&mountlist_mtx);
 }
-#endif
 
 /*
  * Find a prison with ZFS info.

@@ -136,11 +136,15 @@ libzfs_core_debug_ioc(void)
 #endif
 
 int
-libzfs_core_init(void)
+libzfs_core_init_path(const char *path)
 {
 	(void) pthread_mutex_lock(&g_lock);
 	if (g_refcount == 0) {
-		g_fd = open(ZFS_DEV, O_RDWR|O_CLOEXEC);
+		if (strcmp(path, ZFS_DEV) == 0) {
+			g_fd = open(ZFS_DEV, O_RDWR|O_CLOEXEC);
+		} else {
+			g_fd = zsock_open(path);
+		}
 		if (g_fd < 0) {
 			(void) pthread_mutex_unlock(&g_lock);
 			return (errno);
@@ -153,6 +157,12 @@ libzfs_core_init(void)
 #endif
 	(void) pthread_mutex_unlock(&g_lock);
 	return (0);
+}
+
+int
+libzfs_core_init(void)
+{
+	return (libzfs_core_init_path(ZFS_DEV));
 }
 
 void

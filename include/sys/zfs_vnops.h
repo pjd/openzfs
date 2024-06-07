@@ -25,11 +25,13 @@
 #ifndef	_SYS_FS_ZFS_VNOPS_H
 #define	_SYS_FS_ZFS_VNOPS_H
 
+#ifdef _KERNEL
 #include <sys/zfs_vnops_os.h>
+#endif
 
 extern int zfs_bclone_enabled;
 
-extern int zfs_fsync(znode_t *, int, cred_t *);
+extern int zfs_fsync(znode_t *);
 extern int zfs_read(znode_t *, zfs_uio_t *, int, cred_t *);
 extern int zfs_write(znode_t *, zfs_uio_t *, int, cred_t *);
 extern int zfs_holey(znode_t *, ulong_t, loff_t *);

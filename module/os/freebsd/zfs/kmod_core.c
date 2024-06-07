@@ -264,7 +264,6 @@ zfs__init(void)
 		return (error);
 	}
 
-
 	tsd_create(&zfs_geom_probe_vdev_key, NULL);
 
 	printf("ZFS storage pool version: features support ("

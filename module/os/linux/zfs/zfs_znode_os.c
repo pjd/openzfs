@@ -1866,7 +1866,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	moid = MASTER_NODE_OBJ;
 	error = zap_create_claim(os, moid, DMU_OT_MASTER_NODE,
 	    DMU_OT_NONE, 0, tx);
-	ASSERT(error == 0);
+	ASSERT0(error);
 
 	/*
 	 * Set starting attributes.
@@ -1878,8 +1878,8 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 		uint64_t val;
 		const char *name;
 
-		ASSERT(nvpair_type(elem) == DATA_TYPE_UINT64);
-		VERIFY(nvpair_value_uint64(elem, &val) == 0);
+		ASSERT3S(nvpair_type(elem), ==, DATA_TYPE_UINT64);
+		val = fnvpair_value_uint64(elem);
 		name = nvpair_name(elem);
 		if (strcmp(name, zfs_prop_to_name(ZFS_PROP_VERSION)) == 0) {
 			if (val < version)
@@ -1887,15 +1887,15 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 		} else {
 			error = zap_update(os, moid, name, 8, 1, &val, tx);
 		}
-		ASSERT(error == 0);
+		ASSERT0(error);
 		if (strcmp(name, zfs_prop_to_name(ZFS_PROP_NORMALIZE)) == 0)
 			norm = val;
 		else if (strcmp(name, zfs_prop_to_name(ZFS_PROP_CASE)) == 0)
 			sense = val;
 	}
-	ASSERT(version != 0);
+	ASSERT3U(version, !=, 0);
 	error = zap_update(os, moid, ZPL_VERSION_STR, 8, 1, &version, tx);
-	ASSERT(error == 0);
+	ASSERT0(error);
 
 	/*
 	 * Create zap object used for SA attribute registration
@@ -1905,7 +1905,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 		sa_obj = zap_create(os, DMU_OT_SA_MASTER_NODE,
 		    DMU_OT_NONE, 0, tx);
 		error = zap_add(os, moid, ZFS_SA_ATTRS, 8, 1, &sa_obj, tx);
-		ASSERT(error == 0);
+		ASSERT0(error);
 	} else {
 		sa_obj = 0;
 	}
@@ -1915,7 +1915,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	obj = zap_create(os, DMU_OT_UNLINKED_SET, DMU_OT_NONE, 0, tx);
 
 	error = zap_add(os, moid, ZFS_UNLINKED_SET, 8, 1, &obj, tx);
-	ASSERT(error == 0);
+	ASSERT0(error);
 
 	/*
 	 * Create root znode.  Create minimal znode/inode/zfsvfs/sb
@@ -1942,13 +1942,11 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 
 	sb = kmem_zalloc(sizeof (struct super_block), KM_SLEEP);
 	sb->s_fs_info = zfsvfs;
-
 	ZTOI(rootzp)->i_sb = sb;
 
 	error = sa_setup(os, sa_obj, zfs_attr_table, ZPL_END,
 	    &zfsvfs->z_attr_table);
-
-	ASSERT(error == 0);
+	ASSERT0(error);
 
 	/*
 	 * Fold case on file systems that are always or sometimes case
@@ -1972,12 +1970,12 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 		mutex_init(&zfsvfs->z_hold_locks[i], NULL, MUTEX_DEFAULT, NULL);
 	}
 
-	VERIFY(0 == zfs_acl_ids_create(rootzp, IS_ROOT_NODE, &vattr,
-	    cr, NULL, &acl_ids, zfs_init_idmap));
+	VERIFY0(zfs_acl_ids_create(rootzp, IS_ROOT_NODE, &vattr, cr, NULL,
+	    &acl_ids, zfs_init_idmap));
 	zfs_mknode(rootzp, &vattr, tx, cr, IS_ROOT_NODE, &zp, &acl_ids);
 	ASSERT3P(zp, ==, rootzp);
 	error = zap_add(os, moid, ZFS_ROOT_OBJ, 8, 1, &rootzp->z_id, tx);
-	ASSERT(error == 0);
+	ASSERT0(error);
 	zfs_acl_ids_free(&acl_ids);
 
 	atomic_set(&ZTOI(rootzp)->i_count, 0);

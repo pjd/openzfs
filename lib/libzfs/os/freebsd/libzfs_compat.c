@@ -220,7 +220,11 @@ libzfs_error_init(int error)
 int
 zfs_ioctl(libzfs_handle_t *hdl, int request, zfs_cmd_t *zc)
 {
-	return (lzc_ioctl_fd(hdl->libzfs_fd, request, zc));
+	if (hdl->libzfs_issock) {
+		return (zsock_ioctl(hdl->libzfs_fd, request, zc));
+	} else {
+		return (lzc_ioctl_fd(hdl->libzfs_fd, request, zc));
+	}
 }
 
 /*

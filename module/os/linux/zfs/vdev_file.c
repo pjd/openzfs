@@ -36,9 +36,7 @@
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
 #include <sys/zfs_file.h>
-#ifdef _KERNEL
 #include <linux/falloc.h>
-#endif
 /*
  * Virtual device vector for files.
  */
@@ -148,7 +146,6 @@ vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 
 	vf->vf_file = fp;
 
-#ifdef _KERNEL
 	/*
 	 * Make sure it's a regular file.
 	 */
@@ -159,7 +156,6 @@ vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
 		return (SET_ERROR(ENODEV));
 	}
-#endif
 
 skip_open:
 
@@ -337,38 +333,6 @@ vdev_file_fini(void)
 {
 	taskq_destroy(vdev_file_taskq);
 }
-
-/*
- * From userland we access disks just like files.
- */
-#ifndef _KERNEL
-
-vdev_ops_t vdev_disk_ops = {
-	.vdev_op_init = NULL,
-	.vdev_op_fini = NULL,
-	.vdev_op_open = vdev_file_open,
-	.vdev_op_close = vdev_file_close,
-	.vdev_op_asize = vdev_default_asize,
-	.vdev_op_min_asize = vdev_default_min_asize,
-	.vdev_op_min_alloc = NULL,
-	.vdev_op_io_start = vdev_file_io_start,
-	.vdev_op_io_done = vdev_file_io_done,
-	.vdev_op_state_change = NULL,
-	.vdev_op_need_resilver = NULL,
-	.vdev_op_hold = vdev_file_hold,
-	.vdev_op_rele = vdev_file_rele,
-	.vdev_op_remap = NULL,
-	.vdev_op_xlate = vdev_default_xlate,
-	.vdev_op_rebuild_asize = NULL,
-	.vdev_op_metaslab_init = NULL,
-	.vdev_op_config_generate = NULL,
-	.vdev_op_nparity = NULL,
-	.vdev_op_ndisks = NULL,
-	.vdev_op_type = VDEV_TYPE_DISK,		/* name of this vdev type */
-	.vdev_op_leaf = B_TRUE			/* leaf vdev */
-};
-
-#endif
 
 ZFS_MODULE_PARAM(zfs_vdev_file, vdev_file_, logical_ashift, UINT, ZMOD_RW,
 	"Logical ashift for file-based devices");

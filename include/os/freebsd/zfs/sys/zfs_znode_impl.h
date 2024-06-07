@@ -51,15 +51,15 @@ extern "C" {
  * They are used to protect creates, deletes, and renames.
  * Each directory znode has a mutex and a list of locked names.
  */
-#define	ZNODE_OS_FIELDS                 \
-	struct zfsvfs	*z_zfsvfs;      \
-	vnode_t		*z_vnode;       \
+#define	ZNODE_OS_FIELDS				\
+	struct zfsvfs	*z_zfsvfs;		\
+	vnode_t		*z_vnode;		\
 	char		*z_cached_symlink;	\
-	uint64_t		z_uid;          \
-	uint64_t		z_gid;          \
-	uint64_t		z_gen;          \
-	uint64_t		z_atime[2];     \
-	uint64_t		z_links;
+	uint64_t	z_uid;			\
+	uint64_t	z_gid;			\
+	uint64_t	z_gen;			\
+	uint64_t	z_atime[2];		\
+	uint64_t	z_links
 
 #define	ZFS_LINK_MAX	UINT64_MAX
 
@@ -111,10 +111,15 @@ typedef struct zfs_soft_state {
 #define	ZTOGID(zp) ((zp)->z_gid)
 #define	ZTOUID(zp) ((zp)->z_uid)
 #define	ZTONLNK(zp) ((zp)->z_links)
+
+#define	VATOTYPE(vap)	((vap)->va_type)
+
 #define	Z_ISBLK(type) ((type) == VBLK)
 #define	Z_ISCHR(type) ((type) == VCHR)
 #define	Z_ISLNK(type) ((type) == VLNK)
+#define	Z_ISDEV(type) ((type) == VCHR || (type) == VBLK || (type) == VFIFO)
 #define	Z_ISDIR(type) ((type) == VDIR)
+#define	Z_ISREG(type) ((type) == VREG)
 
 #define	zn_has_cached_data(zp, start, end) \
     vn_has_cached_data(ZTOV(zp))

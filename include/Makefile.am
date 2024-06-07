@@ -80,6 +80,7 @@ COMMON_H = \
 	sys/sa.h \
 	sys/sa_impl.h \
 	sys/sha2.h \
+	sys/sid.h \
 	sys/skein.h \
 	sys/spa.h \
 	sys/spa_checkpoint.h \
@@ -171,13 +172,14 @@ COMMON_H = \
 	sys/sysevent/dev.h \
 	sys/sysevent/eventdefs.h \
 	\
-	sys/zstd/zstd.h
+	sys/zstd/zstd.h \
+	\
+	sys/zfs_ioctl.h \
+	sys/zfs_ioctl_impl.h \
+	sys/zfs_onexit.h
 
 
 KERNEL_H = \
-	sys/zfs_ioctl.h \
-	sys/zfs_ioctl_impl.h \
-	sys/zfs_onexit.h \
 	sys/zvol.h \
 	sys/zvol_impl.h
 

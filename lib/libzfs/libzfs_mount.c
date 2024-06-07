@@ -455,6 +455,10 @@ zfs_mount_at(zfs_handle_t *zhp, const char *options, int flags,
 
 	}
 
+	if (hdl->libzfs_issock) {
+		return (0);
+	}
+
 	/*
 	 * Append zfsutil option so the mount helper allow the mount
 	 */
@@ -525,6 +529,7 @@ zfs_mount_at(zfs_handle_t *zhp, const char *options, int flags,
 		} else {
 			zfs_error_aux(hdl, "%s", zfs_strerror(rc));
 		}
+printf("%s:%u\n", __func__, __LINE__);
 		return (zfs_error_fmt(hdl, EZFS_MOUNTFAILED,
 		    dgettext(TEXT_DOMAIN, "cannot mount '%s'"),
 		    zhp->zfs_name));

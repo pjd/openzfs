@@ -238,7 +238,7 @@ sysevent_worker(void *arg __unused)
 		error = zfs_zevent_next(ze, &event,
 		    &dst_size, &dropped);
 		if (error) {
-			error = zfs_zevent_wait(ze);
+			error = zfs_zevent_wait();
 			if (error == ESHUTDOWN)
 				break;
 		} else {

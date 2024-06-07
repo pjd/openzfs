@@ -31,13 +31,20 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
+#ifdef __FreeBSD__
+#include <sys/mount.h>
+#endif
+#include <sys/zfs_sa.h>
 #include <sys/zfs_znode.h>
+#ifdef _KERNEL
 #include <sys/zfs_vnops.h>
 #include <sys/zfs_dir.h>
+#endif
 #include <sys/dsl_prop.h>
 #include <sys/zap.h>
 #include <sys/dmu_objset.h>
 #include <sys/dsl_dir.h>
+#include <sys/zfs_vfsops.h>
 
 #include "zfs_comutil.h"
 
@@ -270,7 +277,13 @@ zfsvfs_create(const char *osname, boolean_t readonly, zfsvfs_t **zfvp)
 		return (error);
 	}
 
-	error = zfsvfs_create_impl(zfvp, zfsvfs, os);
+	error = zfsvfs_create_impl(zfsvfs, os);
+	if (error == 0) {
+		*zfvp = zfsvfs;
+	} else {
+		kmem_free(zfsvfs, sizeof (zfsvfs_t));
+		*zfvp = NULL;
+	}
 
 	return (error);
 }
@@ -305,6 +318,7 @@ zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting)
 		error = dataset_kstats_create(&zfsvfs->z_kstat, zfsvfs->z_os);
 		if (error)
 			return (error);
+#ifdef _KERNEL
 		zfsvfs->z_log = zil_open(zfsvfs->z_os, zfs_get_data,
 		    &zfsvfs->z_kstat.dk_zil_sums);
 
@@ -375,14 +389,21 @@ zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting)
 #endif
 			}
 		}
+#else
+		abort();
+#endif
 
 		/* restore readonly bit */
 		if (readonly != 0)
 			zfs_change_readonly(zfsvfs, B_TRUE);
 	} else {
 		ASSERT3P(zfsvfs->z_kstat.dk_kstats, !=, NULL);
+#ifdef _KERNEL
 		zfsvfs->z_log = zil_open(zfsvfs->z_os, zfs_get_data,
 		    &zfsvfs->z_kstat.dk_zil_sums);
+#else
+		zfsvfs->z_log = NULL;
+#endif
 	}
 
 	/*

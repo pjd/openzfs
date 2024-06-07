@@ -1039,32 +1039,40 @@ libzfs_envvar_is_set(const char *envvar)
 }
 
 libzfs_handle_t *
-libzfs_init(void)
+libzfs_init_path(const char *path)
 {
 	libzfs_handle_t *hdl;
-	int error;
 	char *env;
-
-	if ((error = libzfs_load_module()) != 0) {
-		errno = error;
-		return (NULL);
-	}
+	int error;
 
 	if ((hdl = calloc(1, sizeof (libzfs_handle_t))) == NULL) {
 		return (NULL);
 	}
 
+	if (strcmp(path, ZFS_DEV) == 0) {
+		hdl->libzfs_issock = B_FALSE;
+		if ((error = libzfs_load_module()) != 0) {
+			free(hdl);
+			errno = error;
+			return (NULL);
+		}
+		hdl->libzfs_fd = open(ZFS_DEV, O_RDWR|O_EXCL|O_CLOEXEC);
+	} else {
+		hdl->libzfs_issock = B_TRUE;
+		hdl->libzfs_fd = zsock_open(path);
+	}
+	if (hdl->libzfs_fd < 0) {
+		free(hdl);
+		return (NULL);
+	}
+
 	if (regcomp(&hdl->libzfs_urire, URI_REGEX, 0) != 0) {
+		(void) close(hdl->libzfs_fd);
 		free(hdl);
 		return (NULL);
 	}
 
-	if ((hdl->libzfs_fd = open(ZFS_DEV, O_RDWR|O_EXCL|O_CLOEXEC)) < 0) {
-		free(hdl);
-		return (NULL);
-	}
-
-	if (libzfs_core_init() != 0) {
+	if (libzfs_core_init_path(path) != 0) {
 		(void) close(hdl->libzfs_fd);
 		free(hdl);
 		return (NULL);
@@ -1089,7 +1097,7 @@ libzfs_init(void)
 			return (NULL);
 		}
 	} else {
-		hdl->libzfs_max_nvlist = (SPA_MAXBLOCKSIZE * 4);
+		hdl->libzfs_max_nvlist = SPA_MAXBLOCKSIZE * 4;
 	}
 
 	/*
@@ -1109,6 +1117,12 @@ libzfs_init(void)
 	}
 
 	return (hdl);
+}
+
+libzfs_handle_t *
+libzfs_init(void)
+{
+	return (libzfs_init_path(ZFS_DEV));
 }
 
 void

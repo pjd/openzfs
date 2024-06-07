@@ -186,9 +186,9 @@ static void
 zfs_btree_leaf_free(zfs_btree_t *tree, void *ptr)
 {
 	if (tree->bt_leaf_size == BTREE_LEAF_SIZE)
-		return (kmem_cache_free(zfs_btree_leaf_cache, ptr));
+		kmem_cache_free(zfs_btree_leaf_cache, ptr);
 	else
-		return (kmem_free(ptr, tree->bt_leaf_size));
+		kmem_free(ptr, tree->bt_leaf_size);
 }
 
 void

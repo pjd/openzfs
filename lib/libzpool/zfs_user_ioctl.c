@@ -24,7 +24,9 @@
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/zfs_vfsops.h>
 #include <sys/zfs_ioctl.h>
+#include <sys/zfs_ioctl_impl.h>
 #include <zfs_sock.h>
 #include <libzfs.h>
 #include <signal.h>
@@ -49,10 +51,8 @@ typedef struct conn_arg {
 	int conn_fd;
 } conn_arg_t;
 
-struct cdev;
-struct thread;
-extern int zfsdev_ioctl(struct cdev *, u_long, caddr_t, int, struct thread *);
 extern void zfs_ioctl_init(void);
+extern long zfsdev_ioctl(unsigned int cmd, unsigned long arg);
 
 static int
 ioctl_recv(int size, void *dst)
@@ -346,6 +346,7 @@ releasef(int fd)
 }
 #endif
 
+#if 0
 /*
  * Read a property stored within the master node.
  * XXX copied
@@ -392,6 +393,7 @@ zfs_get_zplprop(objset_t *os, zfs_prop_t prop, uint64_t *value)
 	}
 	return (error);
 }
+#endif
 
 /* XXX copied; need copyrights */
 const struct ioc {
@@ -568,7 +570,7 @@ show_packed_nvlist(uintptr_t offset, size_t size)
 }
 
 static void
-show_zfs_ioc(long addr, int showdst)
+show_zfs_ioc(unsigned long addr, int showdst)
 {
 	static const zfs_share_t zero_share = {0};
 	static const dmu_objset_stats_t zero_objstats = {0};
@@ -851,8 +853,8 @@ handle_connection(void *argp)
 
 	while (B_TRUE) {
 		zfs_ioctl_msg_t msg;
-		int ioctl;
-		uint64_t arg;
+		unsigned int ioc;
+		unsigned long cmd;
 
 		error = ioctl_recvmsg(&msg);
 		if (error != 0) {
@@ -860,7 +862,6 @@ handle_connection(void *argp)
 				fprintf(stderr, "connection closed\n");
 			} else {
 				perror("ioctl_recvmsg failed");
-fprintf(stderr, "%s:%u: ioctl_recvmsg() failed error=%d\n", __func__, __LINE__, error);
 			}
 			break;
 		}
@@ -872,25 +873,23 @@ abort();
 			break;
 		}
 
-		ioctl = msg.zim_u.zim_ioctl.zim_ioctl;
-		arg = msg.zim_u.zim_ioctl.zim_cmd;
+		ioc = msg.zim_u.zim_ioctl.zim_ioctl;
+		cmd = msg.zim_u.zim_ioctl.zim_cmd;
 
-		if (getenv("ZFSD_DEBUG") != NULL) {
-			printf("zfsdev_ioctl(%s %jx)\n", ioc2name(ioctl),
-			    (uintmax_t)arg);
+		if (getenv("UZPOOLD_DEBUG") != NULL) {
+			printf("zfsdev_ioctl(%s %lu)\n", ioc2name(ioc), cmd);
 		}
 
-abort();
 		msg.zim_type = ZIM_IOCTL_RESPONSE;
-//		msg.zim_u.zim_ioctl_response.zim_errno = zfsdev_ioctl(NULL,
-//		    ioctl, (caddr_t)arg, 0, NULL);
-//		zfsdev_ioctl_common(uint_t vecnum, zfs_cmd_t *zc)
+		msg.zim_u.zim_ioctl_response.zim_errno = zfsdev_ioctl(ioc, cmd);
 		msg.zim_u.zim_ioctl_response.zim_retval =
 		    (msg.zim_u.zim_ioctl_response.zim_errno == 0) ? 0 : -1;
 
-		if (getenv("ZFSD_DEBUG") != NULL) {
-			show_zfs_ioc(arg,
+		if (getenv("UZPOOLD_DEBUG") != NULL) {
+if (0) {
+			show_zfs_ioc(cmd,
 			    msg.zim_u.zim_ioctl_response.zim_retval == 0);
+}
 			printf("errno = %u\n",
 			    msg.zim_u.zim_ioctl_response.zim_errno);
 		}
@@ -901,7 +900,6 @@ abort();
 				fprintf(stderr, "connection closed\n");
 			} else {
 				perror("ioctl_sendmsg failed");
-fprintf(stderr, "%s:%u: ioctl_sendmsg() failed error=%d\n", __func__, __LINE__, error);
 			}
 			break;
 		}
@@ -963,9 +961,10 @@ zfs_user_ioctl_init(void)
 
 	zfs_ioctl_init();
 
-	socket_name = getenv(ZFS_SOCKET_ENVVAR);
-	if (socket_name == NULL)
-		return;
+	socket_name = getenv("UZPOOLD_SOCK");
+	if (socket_name == NULL) {
+		socket_name = strdup("/var/run/uzpoold");
+	}
 
 	error = pthread_key_create(&pid_key, NULL);
 	if (error != 0) {

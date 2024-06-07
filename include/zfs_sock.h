@@ -24,9 +24,6 @@
 
 #include <sys/types.h>
 
-/* Name of the environment variable which contains the socket path. */
-#define ZFS_SOCKET_ENVVAR "ZFS_DAEMON_SOCKET"
-
 /* This structure is passed over the socket to the daemon. */
 typedef struct zfs_ioctl_arg {
 	uint64_t zia_pid; /* pid of client process */
@@ -53,6 +50,8 @@ enum zfs_ioctl_msgtype {
 	ZIM_GET_FD_RESPONSE,
 	ZIM_MAX
 };
+
+struct zfs_cmd;
 
 typedef struct zfs_ioctl_msg {
 	enum zfs_ioctl_msgtype zim_type;

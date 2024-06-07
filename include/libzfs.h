@@ -213,6 +213,7 @@ _LIBZFS_H int zpool_wait_status(zpool_handle_t *, zpool_wait_activity_t,
  * Library initialization
  */
 _LIBZFS_H libzfs_handle_t *libzfs_init(void);
+_LIBZFS_H libzfs_handle_t *libzfs_init_path(const char *);
 _LIBZFS_H void libzfs_fini(libzfs_handle_t *);
 
 _LIBZFS_H libzfs_handle_t *zpool_get_handle(zpool_handle_t *);

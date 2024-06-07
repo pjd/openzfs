@@ -132,18 +132,15 @@ zpl_readdir(struct file *filp, void *dirent, filldir_t filldir)
  * and we are guaranteed that filp will never be NULL.
  */
 static int
-zpl_fsync(struct file *filp, int datasync)
+zpl_fsync(struct file *filp, int datasync __unused)
 {
 	struct inode *inode = filp->f_mapping->host;
-	cred_t *cr = CRED();
 	int error;
 	fstrans_cookie_t cookie;
 
-	crhold(cr);
 	cookie = spl_fstrans_mark();
-	error = -zfs_fsync(ITOZ(inode), datasync, cr);
+	error = -zfs_fsync(ITOZ(inode));
 	spl_fstrans_unmark(cookie);
-	crfree(cr);
 	ASSERT3S(error, <=, 0);
 
 	return (error);
@@ -151,9 +148,9 @@ zpl_fsync(struct file *filp, int datasync)
 
 #ifdef HAVE_FILE_AIO_FSYNC
 static int
-zpl_aio_fsync(struct kiocb *kiocb, int datasync)
+zpl_aio_fsync(struct kiocb *kiocb, int datasync __unused)
 {
-	return (zpl_fsync(kiocb->ki_filp, datasync));
+	return (zpl_fsync(kiocb->ki_filp));
 }
 #endif
 
@@ -166,12 +163,11 @@ zpl_aio_fsync(struct kiocb *kiocb, int datasync)
  * to be held so we don't acquire it.
  */
 static int
-zpl_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
+zpl_fsync(struct file *filp, loff_t start, loff_t end, int datasync __unused)
 {
 	struct inode *inode = filp->f_mapping->host;
 	znode_t *zp = ITOZ(inode);
 	zfsvfs_t *zfsvfs = ITOZSB(inode);
-	cred_t *cr = CRED();
 	int error;
 	fstrans_cookie_t cookie;
 
@@ -219,11 +215,9 @@ zpl_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 	if (error)
 		return (error);
 
-	crhold(cr);
 	cookie = spl_fstrans_mark();
-	error = -zfs_fsync(zp, datasync, cr);
+	error = -zfs_fsync(zp);
 	spl_fstrans_unmark(cookie);
-	crfree(cr);
 	ASSERT3S(error, <=, 0);
 
 	return (error);
@@ -231,9 +225,9 @@ zpl_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 
 #ifdef HAVE_FILE_AIO_FSYNC
 static int
-zpl_aio_fsync(struct kiocb *kiocb, int datasync)
+zpl_aio_fsync(struct kiocb *kiocb, int datasync __unused)
 {
-	return (zpl_fsync(kiocb->ki_filp, kiocb->ki_pos, -1, datasync));
+	return (zpl_fsync(kiocb->ki_filp, kiocb->ki_pos, -1));
 }
 #endif
 

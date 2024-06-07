@@ -63,6 +63,9 @@ typedef struct ucred cred_t;
 #define	crgetngroups(cr)	((cr)->cr_ngroups)
 #define	crgetzoneid(cr) 	((cr)->cr_prison->pr_id)
 
+#define	zfs_init_idmap		(NULL)
+#define	zfs_i_user_ns(vp)	(NULL)
+
 #ifdef	__cplusplus
 }
 #endif

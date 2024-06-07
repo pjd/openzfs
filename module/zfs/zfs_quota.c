@@ -33,8 +33,11 @@
 #include <sys/sa.h>
 #include <sys/sa_impl.h>
 #include <sys/zap.h>
+#include <sys/zfs_fuid.h>
 #include <sys/zfs_project.h>
 #include <sys/zfs_quota.h>
+#include <sys/zfs_sa.h>
+#include <sys/zfs_vfsops.h>
 #include <sys/zfs_znode.h>
 
 int

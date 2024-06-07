@@ -57,7 +57,8 @@ int	secpolicy_vnode_setattr(cred_t *cr, vnode_t *vp, struct vattr *vap,
 	    const struct vattr *ovap, int flags,
 	    int unlocked_access(void *, int, cred_t *), void *node);
 int	secpolicy_vnode_create_gid(cred_t *cr);
-int	secpolicy_vnode_setids_setgids(vnode_t *vp, cred_t *cr, gid_t gid);
+int	secpolicy_vnode_setids_setgids(vnode_t *vp, cred_t *cr, gid_t gid,
+	    void *idmap, void *mnt_ns);
 int	secpolicy_vnode_setid_retain(struct znode *zp, cred_t *cr,
 	    boolean_t issuidroot);
 void	secpolicy_setid_clear(struct vattr *vap, vnode_t *vp, cred_t *cr);

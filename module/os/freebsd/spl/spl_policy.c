@@ -299,7 +299,8 @@ secpolicy_vnode_create_gid(cred_t *cr)
 }
 
 int
-secpolicy_vnode_setids_setgids(vnode_t *vp, cred_t *cr, gid_t gid)
+secpolicy_vnode_setids_setgids(vnode_t *vp, cred_t *cr, gid_t gid,
+    void *idmap __unused, void *mnt_ns __unused)
 {
 
 	if (groupmember(gid, cr))
@@ -357,7 +358,8 @@ secpolicy_setid_setsticky_clear(vnode_t *vp, struct vattr *vap,
 	 * group-id bit.
 	 */
 	if ((vap->va_mode & S_ISGID) != 0) {
-		error = secpolicy_vnode_setids_setgids(vp, cr, ovap->va_gid);
+		error = secpolicy_vnode_setids_setgids(vp, cr, ovap->va_gid,
+		    NULL, NULL);
 		if (error)
 			return (error);
 	}

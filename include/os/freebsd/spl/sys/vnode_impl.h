@@ -40,10 +40,6 @@
 #ifndef _SYS_VNODE_IMPL_H
 #define	_SYS_VNODE_IMPL_H
 
-
-#define	IS_DEVVP(vp)	\
-	((vp)->v_type == VCHR || (vp)->v_type == VBLK || (vp)->v_type == VFIFO)
-
 #define	AV_SCANSTAMP_SZ	32		/* length of anti-virus scanstamp */
 
 /*

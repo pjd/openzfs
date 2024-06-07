@@ -22,40 +22,42 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _OPENSOLARIS_SYS_SID_H_
-#define	_OPENSOLARIS_SYS_SID_H_
-#include <sys/idmap.h>
+#ifndef _SYS_SID_H
+#define	_SYS_SID_H
 
 typedef struct ksiddomain {
-	char	*kd_name;	/* Domain part of SID */
-	uint_t	kd_len;
+	char	kd_name[0];
 } ksiddomain_t;
-typedef void	ksid_t;
 
-static __inline ksiddomain_t *
-ksid_lookupdomain(const char *domain)
+typedef enum ksid_index {
+	KSID_USER,
+	KSID_GROUP,
+	KSID_OWNER,
+	KSID_COUNT
+} ksid_index_t;
+
+typedef int ksid_t;
+
+static inline ksiddomain_t *
+ksid_lookupdomain(const char *dom)
 {
 	ksiddomain_t *kd;
-	size_t len;
+	size_t len = strlen(dom);
 
-	len = strlen(domain) + 1;
-	kd = kmem_alloc(sizeof (*kd), KM_SLEEP);
-	kd->kd_len = (uint_t)len;
-	kd->kd_name = kmem_alloc(len, KM_SLEEP);
-	strcpy(kd->kd_name, domain);
+	kd = kmem_zalloc(sizeof (ksiddomain_t) + len + 1, KM_SLEEP);
+	memcpy(kd->kd_name, dom, len + 1);
+
 	return (kd);
 }
 
-static __inline void
-ksiddomain_rele(ksiddomain_t *kd)
+static inline void
+ksiddomain_rele(ksiddomain_t *ksid)
 {
+	size_t len = strlen(ksid->kd_name);
 
-	kmem_free(kd->kd_name, kd->kd_len);
-	kmem_free(kd, sizeof (*kd));
+	kmem_free(ksid, sizeof (ksiddomain_t) + len + 1);
 }
 
-#endif	/* _OPENSOLARIS_SYS_SID_H_ */
+#endif /* _SYS_SID_H */

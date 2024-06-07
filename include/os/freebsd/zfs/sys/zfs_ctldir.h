@@ -45,8 +45,6 @@ extern "C" {
 void zfsctl_create(zfsvfs_t *);
 void zfsctl_destroy(zfsvfs_t *);
 int zfsctl_root(zfsvfs_t *, int, vnode_t **);
-void zfsctl_init(void);
-void zfsctl_fini(void);
 boolean_t zfsctl_is_node(vnode_t *);
 int zfsctl_snapshot_unmount(const char *snapname, int flags);
 int zfsctl_rename_snapshot(const char *from, const char *to);

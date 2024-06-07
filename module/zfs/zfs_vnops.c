@@ -34,8 +34,10 @@
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/sysmacros.h>
+#ifdef _KERNEL
 #include <sys/vfs.h>
 #include <sys/uio_impl.h>
+#endif
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/kmem.h>
@@ -53,6 +55,7 @@
 #include <sys/dbuf.h>
 #include <sys/policy.h>
 #include <sys/zfeature.h>
+#include <sys/zfs_sa.h>
 #include <sys/zfs_vnops.h>
 #include <sys/zfs_quota.h>
 #include <sys/zfs_vfsops.h>
@@ -80,7 +83,7 @@ static int zfs_bclone_wait_dirty = 0;
 static uint64_t zfs_vnops_read_chunk_size = 1024 * 1024;
 
 int
-zfs_fsync(znode_t *zp, int syncflag, cred_t *cr)
+zfs_fsync(znode_t *zp)
 {
 	int error = 0;
 	zfsvfs_t *zfsvfs = ZTOZSB(zp);
@@ -184,19 +187,10 @@ zfs_access(znode_t *zp, int mode, int flag, cred_t *cr)
 		return (error);
 
 	if (flag & V_ACE_MASK)
-#if defined(__linux__)
 		error = zfs_zaccess(zp, mode, flag, B_FALSE, cr,
 		    zfs_init_idmap);
-#else
-		error = zfs_zaccess(zp, mode, flag, B_FALSE, cr,
-		    NULL);
-#endif
 	else
-#if defined(__linux__)
 		error = zfs_zaccess_rwx(zp, mode, flag, cr, zfs_init_idmap);
-#else
-		error = zfs_zaccess_rwx(zp, mode, flag, cr, NULL);
-#endif
 
 	zfs_exit(zfsvfs, FTAG);
 	return (error);
@@ -974,7 +968,6 @@ zfs_get_data(void *arg, uint64_t gen, lr_write_t *lr, char *buf,
 
 	return (error);
 }
-
 
 static void
 zfs_get_done(zgd_t *zgd, int error)

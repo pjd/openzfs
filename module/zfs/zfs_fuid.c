@@ -27,11 +27,9 @@
 #include <sys/avl.h>
 #include <sys/zap.h>
 #include <sys/nvpair.h>
-#ifdef _KERNEL
 #include <sys/sid.h>
 #include <sys/zfs_vfsops.h>
 #include <sys/zfs_znode.h>
-#endif
 #include <sys/zfs_fuid.h>
 
 /*
@@ -184,7 +182,6 @@ zfs_fuid_idx_domain(avl_tree_t *idx_tree, uint32_t idx)
 	return (findnode ? findnode->f_ksid->kd_name : nulldomain);
 }
 
-#ifdef _KERNEL
 /*
  * Load the fuid table(s) into memory.
  */
@@ -378,6 +375,7 @@ zfs_fuid_find_by_idx(zfsvfs_t *zfsvfs, uint32_t idx)
 	return (domain);
 }
 
+#ifdef _KERNEL
 void
 zfs_fuid_map_ids(znode_t *zp, cred_t *cr, uid_t *uidp, uid_t *gidp)
 {
@@ -386,8 +384,19 @@ zfs_fuid_map_ids(znode_t *zp, cred_t *cr, uid_t *uidp, uid_t *gidp)
 	*gidp = zfs_fuid_map_id(ZTOZSB(zp), KGID_TO_SGID(ZTOGID(zp)),
 	    cr, ZFS_GROUP);
 }
+#endif
 
-#ifdef __FreeBSD__
+#if defined(__linux__) || defined(__libzpool__)
+uid_t
+zfs_fuid_map_id(zfsvfs_t *zfsvfs __unused, uint64_t fuid __unused,
+    cred_t *cr __unused, zfs_fuid_type_t type __unused)
+{
+	/*
+	 * The Linux port only supports POSIX IDs, use the passed id.
+	 */
+	return (fuid);
+}
+#elif defined(__FreeBSD__)
 uid_t
 zfs_fuid_map_id(zfsvfs_t *zfsvfs, uint64_t fuid,
     cred_t *cr, zfs_fuid_type_t type)
@@ -399,17 +408,6 @@ zfs_fuid_map_id(zfsvfs_t *zfsvfs, uint64_t fuid,
 
 	return (UID_NOBODY);
 }
-#elif defined(__linux__)
-uid_t
-zfs_fuid_map_id(zfsvfs_t *zfsvfs, uint64_t fuid,
-    cred_t *cr, zfs_fuid_type_t type)
-{
-	/*
-	 * The Linux port only supports POSIX IDs, use the passed id.
-	 */
-	return (fuid);
-}
-
 #else
 uid_t
 zfs_fuid_map_id(zfsvfs_t *zfsvfs, uint64_t fuid,
@@ -654,6 +652,7 @@ zfs_fuid_create(zfsvfs_t *zfsvfs, uint64_t id, cred_t *cr,
 	}
 	return (FUID_ENCODE(idx, rid));
 #else
+	(void) zfsvfs; (void) cr; (void) type; (void) fuidpp;
 	/*
 	 * The Linux port only supports POSIX IDs, use the passed id.
 	 */
@@ -722,7 +721,7 @@ zfs_fuid_info_free(zfs_fuid_info_t *fuidp)
 boolean_t
 zfs_groupmember(zfsvfs_t *zfsvfs, uint64_t id, cred_t *cr)
 {
-	uid_t		gid;
+	uid_t		gid __maybe_unused;
 
 #ifdef illumos
 	ksid_t		*ksid = crgetsid(cr, KSID_GROUP);
@@ -802,4 +801,3 @@ zfs_id_to_fuidstr(zfsvfs_t *zfsvfs, const char *domain, uid_t rid,
 	(void) snprintf(buf, len, "%llx", (longlong_t)fuid);
 	return (0);
 }
-#endif

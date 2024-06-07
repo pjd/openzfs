@@ -57,6 +57,7 @@ ztest_LDFLAGS = -pthread
 
 
 include $(srcdir)/%D%/raidz_test/Makefile.am
+include $(srcdir)/%D%/uzpoold/Makefile.am
 include $(srcdir)/%D%/zdb/Makefile.am
 include $(srcdir)/%D%/zfs/Makefile.am
 include $(srcdir)/%D%/zinject/Makefile.am

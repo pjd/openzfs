@@ -638,7 +638,6 @@ static int
 zcp_get_userquota_prop(lua_State *state, dsl_pool_t *dp,
     const char *dataset_name, const char *prop_name)
 {
-	zfsvfs_t *zfvp;
 	zfsvfs_t *zfsvfs;
 	int error;
 	zfs_userquota_prop_t type;
@@ -655,12 +654,12 @@ zcp_get_userquota_prop(lua_State *state, dsl_pool_t *dp,
 		error = dmu_objset_from_ds(ds, &os);
 		if (error == 0) {
 			zfsvfs = kmem_zalloc(sizeof (zfsvfs_t), KM_SLEEP);
-			error = zfsvfs_create_impl(&zfvp, zfsvfs, os);
+			error = zfsvfs_create_impl(zfsvfs, os);
 			if (error == 0) {
-				error = zfs_userspace_one(zfvp, type, domain,
+				error = zfs_userspace_one(zfsvfs, type, domain,
 				    rid, &value);
-				zfsvfs_free(zfvp);
 			}
+			zfsvfs_free(zfsvfs);
 		}
 		if (domain != NULL)
 			kmem_strfree(domain);

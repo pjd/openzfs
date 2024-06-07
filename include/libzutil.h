@@ -173,6 +173,10 @@ _LIBZUTIL_H int zpool_getenv_int(const char *env, int default_val);
 
 struct zfs_cmd;
 
+_LIBZUTIL_H int zsock_open(const char *path);
+_LIBZUTIL_H boolean_t zsock_is_sock(int fd);
+_LIBZUTIL_H int zsock_ioctl(int sock, zfs_ioc_t ioc, struct zfs_cmd *cmd);
+
 /*
  * List of colors to use
  */

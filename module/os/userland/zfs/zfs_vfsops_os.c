@@ -29,10 +29,8 @@
 
 /* Portions Copyright 2010 Robert Milkowski */
 
-#include <sys/types.h>
+#include <sys/zfs_context.h>
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/sysmacros.h>
 #include <sys/kmem.h>
 #include <sys/acl.h>
@@ -40,10 +38,9 @@
 #include <sys/vfs.h>
 #include <sys/mntent.h>
 #include <sys/mount.h>
-#include <sys/cmn_err.h>
 #include <sys/zfs_znode.h>
-#include <sys/zfs_vnops.h>
-#include <sys/zfs_dir.h>
+//#include <sys/zfs_vnops.h>
+//#include <sys/zfs_dir.h>
 #include <sys/zil.h>
 #include <sys/fs/zfs.h>
 #include <sys/dmu.h>
@@ -55,67 +52,21 @@
 #include <sys/sa.h>
 #include <sys/sa_impl.h>
 #include <sys/policy.h>
-#include <sys/atomic.h>
 #include <sys/zfs_ioctl.h>
-#include <sys/zfs_ctldir.h>
+#include <sys/zfs_acl.h>
+//#include <sys/zfs_ctldir.h>
 #include <sys/zfs_fuid.h>
 #include <sys/sunddi.h>
 #include <sys/dmu_objset.h>
 #include <sys/dsl_dir.h>
 #include <sys/jail.h>
 #include <sys/osd.h>
-#include <ufs/ufs/quota.h>
 #include <sys/zfs_quota.h>
+#include <sys/zfs_vfsops.h>
 
 #include "zfs_comutil.h"
 
-#ifndef	MNTK_VMSETSIZE_BUG
-#define	MNTK_VMSETSIZE_BUG	0
-#endif
-#ifndef	MNTK_NOMSYNC
-#define	MNTK_NOMSYNC	8
-#endif
-
-struct mtx zfs_debug_mtx;
-MTX_SYSINIT(zfs_debug_mtx, &zfs_debug_mtx, "zfs_debug", MTX_DEF);
-int zfs_super_owner;
-int zfs_debug_level;
-
-struct zfs_jailparam {
-	int mount_snapshot;
-};
-
-static struct zfs_jailparam zfs_jailparam0 = {
-	.mount_snapshot = 0,
-};
-
-static int zfs_jailparam_slot;
-
-static int zfs_version_acl = ZFS_ACL_VERSION;
-static int zfs_version_spa = SPA_VERSION;
-static int zfs_version_zpl = ZPL_VERSION;
-
-#if __FreeBSD_version >= 1400018
-static int zfs_quotactl(vfs_t *vfsp, int cmds, uid_t id, void *arg,
-    bool *mp_busy);
-#else
-static int zfs_quotactl(vfs_t *vfsp, int cmds, uid_t id, void *arg);
-#endif
-static int zfs_mount(vfs_t *vfsp);
-static int zfs_umount(vfs_t *vfsp, int fflag);
-static int zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp);
-static int zfs_statfs(vfs_t *vfsp, struct statfs *statp);
-static int zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp);
-static int zfs_sync(vfs_t *vfsp, int waitfor);
-#if __FreeBSD_version >= 1300098
-static int zfs_checkexp(vfs_t *vfsp, struct sockaddr *nam, uint64_t *extflagsp,
-    struct ucred **credanonp, int *numsecflavors, int *secflavors);
-#else
-static int zfs_checkexp(vfs_t *vfsp, struct sockaddr *nam, int *extflagsp,
-    struct ucred **credanonp, int *numsecflavors, int **secflavors);
-#endif
-static int zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp);
-static void zfs_freevfs(vfs_t *vfsp);
+#include <stdbool.h>
 
 int
 zfs_get_temporary_prop(dsl_dataset_t *ds, zfs_prop_t zfs_prop __unused,
@@ -355,79 +306,45 @@ unregister:
 
 taskq_t *zfsvfs_taskq;
 
-static void
-zfsvfs_task_unlinked_drain(void *context, int pending __unused)
-{
-
-	zfs_unlinked_drain((zfsvfs_t *)context);
-}
-
 int
-zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
+zfsvfs_create_impl(zfsvfs_t *zfsvfs, objset_t *os)
 {
 	int error;
 
 	zfsvfs->z_vfs = NULL;
 	zfsvfs->z_parent = zfsvfs;
 
+	mutex_init(&zfsvfs->z_znodes_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&zfsvfs->z_lock, NULL, MUTEX_DEFAULT, NULL);
-	rw_init(&zfsvfs->z_fuid_lock, NULL, RW_DEFAULT, NULL);
+	list_create(&zfsvfs->z_all_znodes, sizeof (znode_t),
+	    offsetof(znode_t, z_link_node));
+	ZFS_TEARDOWN_INIT(zfsvfs);
+	rw_init(&zfsvfs->z_teardown_inactive_lock, NULL, RW_DEFAULT, NULL);
+	for (int i = 0; i != ZFS_OBJ_MTX_SZ; i++)
+		mutex_init(&zfsvfs->z_hold_mtx[i], NULL, MUTEX_DEFAULT, NULL);
 
 	error = zfsvfs_init(zfsvfs, os);
 	if (error != 0) {
 		dmu_objset_disown(os, B_TRUE, zfsvfs);
-		*zfvp = NULL;
-		kmem_free(zfsvfs, sizeof (zfsvfs_t));
 		return (error);
 	}
 
-	*zfvp = zfsvfs;
 	return (0);
 }
 
 void
 zfsvfs_free(zfsvfs_t *zfsvfs)
 {
-	int i;
 
-	zfs_fuid_destroy(zfsvfs);
-
+	mutex_destroy(&zfsvfs->z_znodes_lock);
 	mutex_destroy(&zfsvfs->z_lock);
-	rw_destroy(&zfsvfs->z_fuid_lock);
-	for (i = 0; i != ZFS_OBJ_MTX_SZ; i++)
+	list_destroy(&zfsvfs->z_all_znodes);
+	ZFS_TEARDOWN_DESTROY(zfsvfs);
+	rw_destroy(&zfsvfs->z_teardown_inactive_lock);
+	for (int i = 0; i != ZFS_OBJ_MTX_SZ; i++)
 		mutex_destroy(&zfsvfs->z_hold_mtx[i]);
 	dataset_kstats_destroy(&zfsvfs->z_kstat);
 	kmem_free(zfsvfs, sizeof (zfsvfs_t));
-}
-
-static int
-getpoolname(const char *osname, char *poolname)
-{
-	char *p;
-
-	p = strchr(osname, '/');
-	if (p == NULL) {
-		if (strlen(osname) >= MAXNAMELEN)
-			return (ENAMETOOLONG);
-		(void) strcpy(poolname, osname);
-	} else {
-		if (p - osname >= MAXNAMELEN)
-			return (ENAMETOOLONG);
-		(void) strlcpy(poolname, osname, p - osname + 1);
-	}
-	return (0);
-}
-
-static void
-fetch_osname_options(char *name, bool *checkpointrewind)
-{
-
-	if (name[0] == '!') {
-		*checkpointrewind = true;
-		memmove(name, name + 1, strlen(name));
-	} else {
-		*checkpointrewind = false;
-	}
 }
 
 /*
@@ -436,11 +353,38 @@ fetch_osname_options(char *name, bool *checkpointrewind)
  * Note, if 'unmounting' is FALSE, we return with the 'z_teardown_lock'
  * and 'z_teardown_inactive_lock' held.
  */
-static int
+int
 zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 {
-	znode_t	*zp;
 	dsl_dir_t *dd;
+
+	/*
+	 * If someone has not already unmounted this file system,
+	 * drain the zrele_taskq to ensure all active references to the
+	 * zfsvfs_t have been handled only then can it be safely destroyed.
+	 */
+	if (zfsvfs->z_os) {
+		/*
+		 * If we're unmounting we have to wait for the list to
+		 * drain completely.
+		 *
+		 * If we're not unmounting there's no guarantee the list
+		 * will drain completely, but zreles run from the taskq
+		 * may add the parents of dir-based xattrs to the taskq
+		 * so we want to wait for these.
+		 *
+		 * We can safely check z_all_znodes for being empty because the
+		 * VFS has already blocked operations which add to it.
+		 */
+		int round = 0;
+		while (!list_is_empty(&zfsvfs->z_all_znodes)) {
+			taskq_wait_outstanding(dsl_pool_zrele_taskq(
+			    dmu_objset_pool(zfsvfs->z_os)), 0);
+			if (++round > 1 && !unmounting)
+				break;
+		}
+	}
+	ZFS_TEARDOWN_ENTER_WRITE(zfsvfs, FTAG);
 
 	/*
 	 * Close the zil. NB: Can't close the zil while zfs_inactive
@@ -505,7 +449,6 @@ int
 zfs_resume_fs(zfsvfs_t *zfsvfs, dsl_dataset_t *ds)
 {
 	int err;
-	znode_t *zp;
 
 	/*
 	 * We already own this, so just update the objset_t, as the one we
@@ -537,23 +480,15 @@ zfs_init(void)
 
 	printf("ZFS filesystem version: " ZPL_VERSION_STRING "\n");
 
-	/*
-	 * Initialize .zfs directory structures
-	 */
-	zfsctl_init();
-
-	/*
-	 * Initialize znode cache, vnode ops, etc...
-	 */
 	zfs_znode_init();
-
 	dmu_objset_register_type(DMU_OST_ZFS, zpl_get_file_info);
+//	zfsvfs_taskq = taskq_create("zfsvfs", 1, minclsyspri, 0, 0, 0);
 }
 
 void
 zfs_fini(void)
 {
-	zfsctl_fini();
+//	taskq_destroy(zfsvfs_taskq);
 	zfs_znode_fini();
 }
 

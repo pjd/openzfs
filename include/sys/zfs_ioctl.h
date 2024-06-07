@@ -545,15 +545,14 @@ typedef struct zfs_creat {
 struct objset;
 struct zfsvfs;
 
+extern void zfs_ioctl_init(void);
 extern int zfs_secpolicy_snapshot_perms(const char *, cred_t *);
 extern int zfs_secpolicy_rename_perms(const char *, const char *, cred_t *);
 extern int zfs_secpolicy_destroy_perms(const char *, cred_t *);
 extern void zfs_unmount_snap(const char *);
 extern void zfs_destroy_unmount_origin(const char *);
-#ifdef _KERNEL
 extern int getzfsvfs_impl(struct objset *, struct zfsvfs **);
 extern int getzfsvfs(const char *, struct zfsvfs **);
-#endif	/* _KERNEL */
 
 enum zfsdev_state_type {
 	ZST_ONEXIT,
@@ -575,12 +574,12 @@ typedef struct zfsdev_state {
 	void			*zs_zevent;	/* zevent data */
 } zfsdev_state_t;
 
-#ifdef _KERNEL
+//#ifdef _KERNEL
 extern void *zfsdev_get_state(minor_t minor, enum zfsdev_state_type which);
 extern int zfsdev_getminor(zfs_file_t *fp, minor_t *minorp);
 
 extern uint_t zfs_allow_log_key;
-#endif	/* _KERNEL */
+//#endif	/* _KERNEL */
 
 #ifdef	__cplusplus
 }

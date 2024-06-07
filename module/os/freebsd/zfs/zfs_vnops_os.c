@@ -4768,7 +4768,7 @@ static int
 zfs_freebsd_fsync(struct vop_fsync_args *ap)
 {
 
-	return (zfs_fsync(VTOZ(ap->a_vp), 0, ap->a_td->td_ucred));
+	return (zfs_fsync(VTOZ(ap->a_vp)));
 }
 
 #ifndef _SYS_SYSPROTO_H_

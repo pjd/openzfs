@@ -33,7 +33,7 @@
 extern "C" {
 #endif
 
-#ifdef _KERNEL
+//#ifdef _KERNEL
 
 typedef struct zfs_onexit {
 	kmutex_t	zo_lock;
@@ -49,7 +49,7 @@ typedef struct zfs_onexit_action_node {
 extern void zfs_onexit_init(zfs_onexit_t **zo);
 extern void zfs_onexit_destroy(zfs_onexit_t *zo);
 
-#endif
+//#endif
 
 extern zfs_file_t *zfs_onexit_fd_hold(int fd, minor_t *minorp);
 extern void zfs_onexit_fd_rele(zfs_file_t *);

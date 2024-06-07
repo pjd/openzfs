@@ -50,12 +50,12 @@ extern "C" {
 #if defined(HAVE_FILEMAP_RANGE_HAS_PAGE)
 #define	ZNODE_OS_FIELDS			\
 	inode_timespec_t z_btime; /* creation/birth time (cached) */ \
-	struct inode	z_inode;
+	struct inode	z_inode
 #else
 #define	ZNODE_OS_FIELDS			\
 	inode_timespec_t z_btime; /* creation/birth time (cached) */ \
 	struct inode	z_inode;                                     \
-	boolean_t	z_is_mapped;    /* we are mmap'ed */
+	boolean_t	z_is_mapped    /* we are mmap'ed */
 #endif
 
 /*
@@ -67,15 +67,18 @@ extern "C" {
 #define	ITOZSB(inode)	((zfsvfs_t *)((inode)->i_sb->s_fs_info))
 
 #define	ZTOTYPE(zp)	(ZTOI(zp)->i_mode)
-#define	ZTOGID(zp) (ZTOI(zp)->i_gid)
-#define	ZTOUID(zp) (ZTOI(zp)->i_uid)
-#define	ZTONLNK(zp) (ZTOI(zp)->i_nlink)
+#define	ZTOGID(zp)	(ZTOI(zp)->i_gid)
+#define	ZTOUID(zp)	(ZTOI(zp)->i_uid)
+#define	ZTONLNK(zp)	(ZTOI(zp)->i_nlink)
 
-#define	Z_ISBLK(type) S_ISBLK(type)
-#define	Z_ISCHR(type) S_ISCHR(type)
-#define	Z_ISLNK(type) S_ISLNK(type)
+#define	VATOTYPE(vap)	((vap)->va_mode)
+
+#define	Z_ISBLK(type)	S_ISBLK(type)
+#define	Z_ISCHR(type)	S_ISCHR(type)
+#define	Z_ISLNK(type)	S_ISLNK(type)
 #define	Z_ISDEV(type)	(S_ISCHR(type) || S_ISBLK(type) || S_ISFIFO(type))
 #define	Z_ISDIR(type)	S_ISDIR(type)
+#define	Z_ISREG(type)	S_ISREG(type)
 
 #if defined(HAVE_FILEMAP_RANGE_HAS_PAGE)
 #define	zn_has_cached_data(zp, start, end) \

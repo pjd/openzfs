@@ -145,7 +145,7 @@ secpolicy_vnode_any_access(const cred_t *cr, struct inode *ip, uid_t owner)
  * Determine if subject can chown owner of a file.
  */
 int
-secpolicy_vnode_chown(const cred_t *cr, uid_t owner)
+secpolicy_vnode_chown(struct inode *ip __unused, const cred_t *cr, uid_t owner)
 {
 	if (crgetuid(cr) == owner)
 		return (0);
@@ -172,7 +172,7 @@ secpolicy_vnode_create_gid(const cred_t *cr)
  * regardless of permission bits.
  */
 int
-secpolicy_vnode_remove(const cred_t *cr)
+secpolicy_vnode_remove(struct inode *ip __unused, const cred_t *cr)
 {
 	return (priv_policy(cr, CAP_FOWNER, EPERM));
 }
@@ -182,7 +182,7 @@ secpolicy_vnode_remove(const cred_t *cr)
  * needed when modifying root owned object.
  */
 int
-secpolicy_vnode_setdac(const cred_t *cr, uid_t owner)
+secpolicy_vnode_setdac(struct inode *ip __unused, const cred_t *cr, uid_t owner)
 {
 	if (crgetuid(cr) == owner)
 		return (0);
@@ -214,8 +214,8 @@ secpolicy_vnode_setid_retain(struct znode *zp __maybe_unused, const cred_t *cr,
  * Determine that subject can set the file setgid flag.
  */
 int
-secpolicy_vnode_setids_setgids(const cred_t *cr, gid_t gid, zidmap_t *mnt_ns,
-    struct user_namespace *fs_ns)
+secpolicy_vnode_setids_setgids(struct inode *ip __unused, const cred_t *cr,
+    gid_t gid, zidmap_t *mnt_ns, struct user_namespace *fs_ns)
 {
 	gid = zfs_gid_to_vfsgid(mnt_ns, fs_ns, gid);
 #if defined(CONFIG_USER_NS)

@@ -39,6 +39,7 @@ extern "C" {
 #endif
 
 _LIBZFS_CORE_H int libzfs_core_init(void);
+_LIBZFS_CORE_H int libzfs_core_init_path(const char *path);
 _LIBZFS_CORE_H void libzfs_core_fini(void);
 
 struct zfs_cmd;

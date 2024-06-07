@@ -2,15 +2,17 @@ libzpool_la_CFLAGS  = $(AM_CFLAGS) $(KERNEL_CFLAGS) $(LIBRARY_CFLAGS)
 libzpool_la_CFLAGS += $(ZLIB_CFLAGS)
 
 libzpool_la_CPPFLAGS  = $(AM_CPPFLAGS) $(FORCEDEBUG_CPPFLAGS)
+libzpool_la_CPPFLAGS += -I$(srcdir)/include/os/userland/spl
+libzpool_la_CPPFLAGS += -I$(srcdir)/include/os/userland/zfs
 libzpool_la_CPPFLAGS += -I$(srcdir)/include/os/@ac_system_l@/zfs
 libzpool_la_CPPFLAGS += -DLIB_ZPOOL_BUILD
+libzpool_la_CPPFLAGS += -D__libzpool__
 
 lib_LTLIBRARIES += libzpool.la
 CPPCHECKTARGETS += libzpool.la
 
 dist_libzpool_la_SOURCES = \
 	%D%/kernel.c \
-	%D%/taskq.c \
 	%D%/util.c \
 	%D%/zfs_user_ioctl.c
 
@@ -40,16 +42,21 @@ nodist_libzpool_la_SOURCES = \
 	module/lua/lvm.c \
 	module/lua/lzio.c \
 	\
-	module/os/linux/zfs/abd_os.c \
 	module/os/linux/zfs/arc_os.c \
 	module/os/linux/zfs/trace.c \
-	module/os/linux/zfs/vdev_file.c \
 	module/os/linux/zfs/vdev_label_os.c \
-	module/os/linux/zfs/zfs_debug.c \
 	module/os/linux/zfs/zfs_racct.c \
 	module/os/linux/zfs/zio_crypt.c \
 	\
+	module/os/userland/spl/spl_kmem.c \
+	module/os/userland/spl/spl_policy.c \
+	module/os/userland/spl/spl_taskq.c \
+	module/os/userland/zfs/abd_os.c \
+	module/os/userland/zfs/vdev_file.c \
+	module/os/userland/zfs/zfs_debug.c \
+	module/os/userland/zfs/zfs_ioctl_os.c \
 	module/os/userland/zfs/zfs_vfsops_os.c \
+	module/os/userland/zfs/zfs_znode_os.c \
 	\
 	module/zcommon/cityhash.c \
 	module/zcommon/zfeature_common.c \
@@ -78,6 +85,7 @@ nodist_libzpool_la_SOURCES = \
 	module/zfs/bqueue.c \
 	module/zfs/btree.c \
 	module/zfs/brt.c \
+	module/zfs/dataset_kstats.c \
 	module/zfs/dbuf.c \
 	module/zfs/dbuf_stats.c \
 	module/zfs/ddt.c \
@@ -174,14 +182,18 @@ nodist_libzpool_la_SOURCES = \
 	module/zfs/zcp_set.c \
 	module/zfs/zcp_synctask.c \
 	module/zfs/zfeature.c \
+	module/os/freebsd/zfs/zfs_acl.c \
 	module/zfs/zfs_byteswap.c \
 	module/zfs/zfs_chksum.c \
 	module/zfs/zfs_fm.c \
 	module/zfs/zfs_fuid.c \
 	module/zfs/zfs_ioctl.c \
+	module/zfs/zfs_onexit.c \
+	module/zfs/zfs_quota.c \
 	module/zfs/zfs_ratelimit.c \
 	module/zfs/zfs_rlock.c \
 	module/zfs/zfs_sa.c \
+	module/zfs/zfs_vfsops.c \
 	module/zfs/zfs_znode.c \
 	module/zfs/zil.c \
 	module/zfs/zio.c \
@@ -196,6 +208,7 @@ libzpool_la_LIBADD = \
 	libicp.la \
 	libunicode.la \
 	libnvpair.la \
+	libzfs_core.la \
 	libzstd.la \
 	libzutil.la
 

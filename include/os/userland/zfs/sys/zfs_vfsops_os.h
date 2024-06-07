@@ -24,8 +24,8 @@
  * All rights reserved.
  */
 
-#ifndef	_SYS_FS_ZFS_VFSOPS_H
-#define	_SYS_FS_ZFS_VFSOPS_H
+#ifndef	_SYS_ZFS_VFSOPS_OS_H
+#define	_SYS_ZFS_VFSOPS_OS_H
 
 #include <sys/dataset_kstats.h>
 #include <sys/list.h>
@@ -65,14 +65,20 @@ struct zfsvfs {
 	int		z_norm;		/* normalization flags */
 	boolean_t	z_atime;	/* enable atimes mount option */
 	boolean_t	z_unmounted;	/* unmounted */
+	rrmlock_t	z_teardown_lock;
+	krwlock_t	z_teardown_inactive_lock;
+	list_t		z_all_znodes;	/* all vnodes in the fs */
+	kmutex_t	z_znodes_lock;	/* lock for z_all_znodes */
 	boolean_t	z_show_ctldir;	/* expose .zfs in the root dir */
 	boolean_t	z_issnap;	/* true if this is a snapshot */
 	boolean_t	z_use_fuids;	/* version allows fuids */
 	boolean_t	z_replay;	/* set during ZIL replay */
 	boolean_t	z_use_sa;	/* version allow system attributes */
 	boolean_t	z_xattr_sa;	/* allow xattrs to be stores as SA */
+	boolean_t	z_use_namecache; /* make use of FreeBSD name cache */
 	uint8_t		z_xattr;	/* xattr type in use */
 	uint64_t	z_version;	/* ZPL version */
+	uint64_t	z_shares_dir;	/* hidden shares dir */
 	dataset_kstats_t	z_kstat;	/* fs kstats */
 	kmutex_t	z_lock;
 	uint64_t	z_userquota_obj;
@@ -83,7 +89,43 @@ struct zfsvfs {
 	uint64_t	z_projectobjquota_obj;
 	uint64_t	z_replay_eof;	/* New end of file - replay only */
 	sa_attr_type_t	*z_attr_table;	/* SA attr mapping->id */
+#define	ZFS_OBJ_MTX_SZ	64
+	kmutex_t	z_hold_mtx[ZFS_OBJ_MTX_SZ];	/* znode hold locks */
+	boolean_t	z_nbmand;
+	boolean_t	z_exec;
+	boolean_t	z_readonly;
+	boolean_t	z_setuid;
 };
+
+#define	ZFS_TEARDOWN_INIT(zfsvfs)		\
+	rrm_init(&(zfsvfs)->z_teardown_lock, B_FALSE)
+
+#define	ZFS_TEARDOWN_DESTROY(zfsvfs)		\
+	rrm_destroy(&(zfsvfs)->z_teardown_lock)
+
+#define	ZFS_TEARDOWN_ENTER_READ(zfsvfs, tag)	\
+	rrm_enter_read(&(zfsvfs)->z_teardown_lock, tag);
+
+#define	ZFS_TEARDOWN_EXIT_READ(zfsvfs, tag)	\
+	rrm_exit(&(zfsvfs)->z_teardown_lock, tag)
+
+#define	ZFS_TEARDOWN_ENTER_WRITE(zfsvfs, tag)	\
+	rrm_enter(&(zfsvfs)->z_teardown_lock, RW_WRITER, tag)
+
+#define	ZFS_TEARDOWN_EXIT_WRITE(zfsvfs)		\
+	rrm_exit(&(zfsvfs)->z_teardown_lock, tag)
+
+#define	ZFS_TEARDOWN_EXIT(zfsvfs, tag)		\
+	rrm_exit(&(zfsvfs)->z_teardown_lock, tag)
+
+#define	ZFS_TEARDOWN_READ_HELD(zfsvfs)		\
+	RRM_READ_HELD(&(zfsvfs)->z_teardown_lock)
+
+#define	ZFS_TEARDOWN_WRITE_HELD(zfsvfs)		\
+	RRM_WRITE_HELD(&(zfsvfs)->z_teardown_lock)
+
+#define	ZFS_TEARDOWN_HELD(zfsvfs)		\
+	RRM_LOCK_HELD(&(zfsvfs)->z_teardown_lock)
 
 #define	ZSB_XATTR	0x0001		/* Enable user xattrs */
 /*
@@ -137,20 +179,10 @@ typedef struct zfid_long {
 #define	SHORT_FID_LEN	(sizeof (zfid_short_t) - sizeof (uint16_t))
 #define	LONG_FID_LEN	(sizeof (zfid_long_t) - sizeof (uint16_t))
 
-extern void zfs_init(void);
-extern void zfs_fini(void);
-
-extern int zfs_resume_fs(zfsvfs_t *zfsvfs, struct dsl_dataset *ds);
-extern int zfs_end_fs(zfsvfs_t *zfsvfs, struct dsl_dataset *ds);
-extern int zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os);
-extern void zfsvfs_free(zfsvfs_t *zfsvfs);
-extern int zfs_check_global_label(const char *dsname, const char *hexsl);
-extern int zfs_get_temporary_prop(struct dsl_dataset *ds, zfs_prop_t zfs_prop,
-    uint64_t *val, char *setpoint);
 extern int zfs_busy(void);
 
 #ifdef	__cplusplus
 }
 #endif
 
-#endif	/* _SYS_FS_ZFS_VFSOPS_H */
+#endif	/* _SYS_ZFS_VFSOPS_OS_H */

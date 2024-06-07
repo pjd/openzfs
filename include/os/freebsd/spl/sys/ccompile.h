@@ -86,15 +86,16 @@ typedef int enum_t;
 #define	__exit
 #endif
 
-#if defined(_KERNEL) || defined(_STANDALONE)
-#define	param_set_charp(a, b) (0)
-#define	ATTR_UID AT_UID
-#define	ATTR_GID AT_GID
-#define	ATTR_MODE AT_MODE
+#define	ATTR_UID	AT_UID
+#define	ATTR_GID	AT_GID
+#define	ATTR_MODE	AT_MODE
 #define	ATTR_XVATTR	AT_XVATTR
 #define	ATTR_CTIME	AT_CTIME
 #define	ATTR_MTIME	AT_MTIME
 #define	ATTR_ATIME	AT_ATIME
+
+#if defined(_KERNEL) || defined(_STANDALONE)
+#define	param_set_charp(a, b) (0)
 #if defined(_STANDALONE)
 #define	vmem_free kmem_free
 #define	vmem_zalloc kmem_zalloc

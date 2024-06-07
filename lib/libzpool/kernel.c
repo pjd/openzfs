@@ -839,6 +839,8 @@ kernel_init(int mode)
 
 	VERIFY0(uname(&hw_utsname));
 
+	zfs_init();
+
 	system_taskq_init();
 	icp_init();
 
@@ -849,6 +851,8 @@ kernel_init(int mode)
 	fletcher_4_init();
 
 	tsd_create(&rrw_tsd_key, rrw_tsd_destroy);
+
+	zfs_user_ioctl_init();
 }
 
 void
@@ -863,147 +867,6 @@ kernel_fini(void)
 	system_taskq_fini();
 
 	random_fini();
-}
-
-uid_t
-crgetuid(cred_t *cr)
-{
-	(void) cr;
-	return (0);
-}
-
-uid_t
-crgetruid(cred_t *cr)
-{
-	(void) cr;
-	return (0);
-}
-
-gid_t
-crgetgid(cred_t *cr)
-{
-	(void) cr;
-	return (0);
-}
-
-int
-crgetngroups(cred_t *cr)
-{
-	(void) cr;
-	return (0);
-}
-
-gid_t *
-crgetgroups(cred_t *cr)
-{
-	(void) cr;
-	return (NULL);
-}
-
-int
-zfs_secpolicy_snapshot_perms(const char *name, cred_t *cr)
-{
-	(void) name, (void) cr;
-	return (0);
-}
-
-int
-zfs_secpolicy_rename_perms(const char *from, const char *to, cred_t *cr)
-{
-	(void) from, (void) to, (void) cr;
-	return (0);
-}
-
-int
-zfs_secpolicy_destroy_perms(const char *name, cred_t *cr)
-{
-	(void) name, (void) cr;
-	return (0);
-}
-
-int
-secpolicy_nfs(const cred_t *cr)
-{
-	(void) cr;
-	return (0);
-}
-
-int
-secpolicy_smb(const cred_t *cr)
-{
-	(void) cr;
-	return (0);
-}
-
-int
-secpolicy_sys_config(const cred_t *cr, int checkonly)
-{
-	(void) cr, (void) checkonly;
-	return (0);
-}
-
-int
-secpolicy_zinject(const cred_t *cr)
-{
-	(void) cr;
-	return (0);
-}
-
-int
-secpolicy_zfs(const cred_t *cr)
-{
-	(void) cr;
-	return (0);
-}
-
-int
-secpolicy_zfs_proc(const cred_t *cr, proc_t *proc)
-{
-	(void) cr, (void) proc;
-	return (0);
-}
-
-ksiddomain_t *
-ksid_lookupdomain(const char *dom)
-{
-	ksiddomain_t *kd;
-
-	kd = umem_zalloc(sizeof (ksiddomain_t), UMEM_NOFAIL);
-	kd->kd_name = spa_strdup(dom);
-	return (kd);
-}
-
-void
-ksiddomain_rele(ksiddomain_t *ksid)
-{
-	spa_strfree(ksid->kd_name);
-	umem_free(ksid, sizeof (ksiddomain_t));
-}
-
-char *
-kmem_vasprintf(const char *fmt, va_list adx)
-{
-	char *buf = NULL;
-	va_list adx_copy;
-
-	va_copy(adx_copy, adx);
-	VERIFY(vasprintf(&buf, fmt, adx_copy) != -1);
-	va_end(adx_copy);
-
-	return (buf);
-}
-
-char *
-kmem_asprintf(const char *fmt, ...)
-{
-	char *buf = NULL;
-	va_list adx;
-
-	va_start(adx, fmt);
-	VERIFY(vasprintf(&buf, fmt, adx) != -1);
-	va_end(adx);
-
-	return (buf);
 }
 
 /*
@@ -1035,28 +898,6 @@ kmem_scnprintf(char *restrict str, size_t size, const char *restrict fmt, ...)
 	return (n);
 }
 
-zfs_file_t *
-zfs_onexit_fd_hold(int fd, minor_t *minorp)
-{
-	(void) fd;
-	*minorp = 0;
-	return (NULL);
-}
-
-void
-zfs_onexit_fd_rele(zfs_file_t *fp)
-{
-	(void) fp;
-}
-
-int
-zfs_onexit_add_cb(minor_t minor, void (*func)(void *), void *data,
-    uintptr_t *action_handle)
-{
-	(void) minor, (void) func, (void) data, (void) action_handle;
-	return (0);
-}
-
 fstrans_cookie_t
 spl_fstrans_mark(void)
 {
@@ -1071,12 +912,6 @@ spl_fstrans_unmark(fstrans_cookie_t cookie)
 
 int
 __spl_pf_fstrans_check(void)
-{
-	return (0);
-}
-
-int
-kmem_cache_reap_active(void)
 {
 	return (0);
 }
@@ -1440,6 +1275,21 @@ zfs_file_off(zfs_file_t *fp)
 }
 
 /*
+ * Request file pointer private data
+ *
+ * fp - pointer to file
+ *
+ * Returns pointer to file private data.
+ */
+void *
+zfs_file_private(zfs_file_t *fp __unused)
+{
+	/* TODO */
+//	return (fp->private_data);
+	return (NULL);
+}
+
+/*
  * unlink file
  *
  * path - fully qualified file path
@@ -1481,45 +1331,6 @@ zfs_file_put(zfs_file_t *fp)
 {
 	abort();
 	(void) fp;
-}
-
-int
-zfs_vfs_ref(zfsvfs_t **zfvp)
-{
-
-	ASSERT(*zfvp == NULL);
-
-	return (SET_ERROR(ESRCH));
-}
-
-boolean_t
-zfs_vfs_held(zfsvfs_t *zfsvfs __unused)
-{
-	abort();
-}
-
-void
-zfs_vfs_rele(zfsvfs_t *zfsvfs __unused)
-{
-	abort();
-}
-
-int
-zfs_suspend_fs(zfsvfs_t *zfsvfs __unused)
-{
-	abort();
-}
-
-int
-zfs_resume_fs(zfsvfs_t *zfsvfs __unused)
-{
-	abort();
-}
-
-void
-zfsvfs_update_fromname(const char *oldname, const char *newname)
-{
-	(void) oldname, (void) newname;
 }
 
 void

@@ -102,7 +102,6 @@
  * ereport with information about the differences.
  */
 
-#ifdef _KERNEL
 /*
  * Duplicate ereport Detection
  *
@@ -248,7 +247,7 @@ static void zfs_ereport_schedule_cleaner(void);
  * background task to clean stale recent event nodes.
  */
 static void
-zfs_ereport_cleaner(void *arg)
+zfs_ereport_cleaner(void *arg __unused)
 {
 	recent_events_node_t *entry;
 	uint64_t now = gethrtime();
@@ -1062,13 +1061,6 @@ annotate_ecksum(nvlist_t *ereport, zio_bad_cksum_t *info,
 	}
 	return (eip);
 }
-#else
-void
-zfs_ereport_clear(spa_t *spa, vdev_t *vd)
-{
-	(void) spa, (void) vd;
-}
-#endif
 
 /*
  * Make sure our event is still valid for the given zio/vdev/pool.  For example,
@@ -1077,7 +1069,6 @@ zfs_ereport_clear(spa_t *spa, vdev_t *vd)
 boolean_t
 zfs_ereport_is_valid(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio)
 {
-#ifdef _KERNEL
 	/*
 	 * If we are doing a spa_tryimport() or in recovery mode,
 	 * ignore errors.
@@ -1140,9 +1131,6 @@ zfs_ereport_is_valid(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio)
 	    (zio != NULL) && (!zio->io_timestamp)) {
 		return (B_FALSE);
 	}
-#else
-	(void) subclass, (void) spa, (void) vd, (void) zio;
-#endif
 	return (B_TRUE);
 }
 
@@ -1160,7 +1148,6 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd,
     const zbookmark_phys_t *zb, zio_t *zio, uint64_t state)
 {
 	int rc = 0;
-#ifdef _KERNEL
 	nvlist_t *ereport = NULL;
 	nvlist_t *detector = NULL;
 
@@ -1182,10 +1169,6 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd,
 
 	/* Cleanup is handled by the callback function */
 	rc = zfs_zevent_post(ereport, detector, zfs_zevent_post_cb);
-#else
-	(void) subclass, (void) spa, (void) vd, (void) zb, (void) zio,
-	    (void) state;
-#endif
 	return (rc);
 }
 
@@ -1204,7 +1187,6 @@ zfs_ereport_start_checksum(spa_t *spa, vdev_t *vd, const zbookmark_phys_t *zb,
 {
 	zio_cksum_report_t *report;
 
-#ifdef _KERNEL
 	if (!zfs_ereport_is_valid(FM_EREPORT_ZFS_CHECKSUM, spa, vd, zio))
 		return (SET_ERROR(EINVAL));
 
@@ -1214,9 +1196,6 @@ zfs_ereport_start_checksum(spa_t *spa, vdev_t *vd, const zbookmark_phys_t *zb,
 
 	if (zfs_is_ratelimiting_event(FM_EREPORT_ZFS_CHECKSUM, vd))
 		return (SET_ERROR(EBUSY));
-#else
-	(void) zb, (void) offset;
-#endif
 
 	report = kmem_zalloc(sizeof (*report), KM_SLEEP);
 
@@ -1233,7 +1212,6 @@ zfs_ereport_start_checksum(spa_t *spa, vdev_t *vd, const zbookmark_phys_t *zb,
 	    vdev_psize_to_asize(vd->vdev_top, report->zcr_sector);
 	report->zcr_length = length;
 
-#ifdef _KERNEL
 	(void) zfs_ereport_start(&report->zcr_ereport, &report->zcr_detector,
 	    FM_EREPORT_ZFS_CHECKSUM, spa, vd, zb, zio, offset, length);
 
@@ -1241,7 +1219,6 @@ zfs_ereport_start_checksum(spa_t *spa, vdev_t *vd, const zbookmark_phys_t *zb,
 		zfs_ereport_free_checksum(report);
 		return (0);
 	}
-#endif
 
 	mutex_enter(&spa->spa_errlist_lock);
 	report->zcr_next = zio->io_logical->io_cksum_report;
@@ -1254,7 +1231,6 @@ void
 zfs_ereport_finish_checksum(zio_cksum_report_t *report, const abd_t *good_data,
     const abd_t *bad_data, boolean_t drop_if_identical)
 {
-#ifdef _KERNEL
 	zfs_ecksum_info_t *info;
 
 	info = annotate_ecksum(report->zcr_ereport, report->zcr_ckinfo,
@@ -1268,23 +1244,17 @@ zfs_ereport_finish_checksum(zio_cksum_report_t *report, const abd_t *good_data,
 	report->zcr_ereport = report->zcr_detector = NULL;
 	if (info != NULL)
 		kmem_free(info, sizeof (*info));
-#else
-	(void) report, (void) good_data, (void) bad_data,
-	    (void) drop_if_identical;
-#endif
 }
 
 void
 zfs_ereport_free_checksum(zio_cksum_report_t *rpt)
 {
-#ifdef _KERNEL
 	if (rpt->zcr_ereport != NULL) {
 		fm_nvlist_destroy(rpt->zcr_ereport,
 		    FM_NVA_FREE);
 		fm_nvlist_destroy(rpt->zcr_detector,
 		    FM_NVA_FREE);
 	}
-#endif
 	rpt->zcr_free(rpt->zcr_cbdata, rpt->zcr_cbinfo);
 
 	if (rpt->zcr_ckinfo != NULL)
@@ -1308,7 +1278,6 @@ zfs_ereport_post_checksum(spa_t *spa, vdev_t *vd, const zbookmark_phys_t *zb,
     const abd_t *good_data, const abd_t *bad_data, zio_bad_cksum_t *zbc)
 {
 	int rc = 0;
-#ifdef _KERNEL
 	nvlist_t *ereport = NULL;
 	nvlist_t *detector = NULL;
 	zfs_ecksum_info_t *info;
@@ -1335,10 +1304,6 @@ zfs_ereport_post_checksum(spa_t *spa, vdev_t *vd, const zbookmark_phys_t *zb,
 		rc = zfs_zevent_post(ereport, detector, zfs_zevent_post_cb);
 		kmem_free(info, sizeof (*info));
 	}
-#else
-	(void) spa, (void) vd, (void) zb, (void) zio, (void) offset,
-	    (void) length, (void) good_data, (void) bad_data, (void) zbc;
-#endif
 	return (rc);
 }
 
@@ -1353,7 +1318,6 @@ zfs_event_create(spa_t *spa, vdev_t *vd, const char *type, const char *name,
     nvlist_t *aux)
 {
 	nvlist_t *resource = NULL;
-#ifdef _KERNEL
 	char class[64];
 
 	if (spa_load_state(spa) == SPA_LOAD_TRYIMPORT)
@@ -1402,9 +1366,6 @@ zfs_event_create(spa_t *spa, vdev_t *vd, const char *type, const char *name,
 		while ((elem = nvlist_next_nvpair(aux, elem)) != NULL)
 			(void) nvlist_add_nvpair(resource, elem);
 	}
-#else
-	(void) spa, (void) vd, (void) type, (void) name, (void) aux;
-#endif
 	return (resource);
 }
 
@@ -1412,15 +1373,11 @@ static void
 zfs_post_common(spa_t *spa, vdev_t *vd, const char *type, const char *name,
     nvlist_t *aux)
 {
-#ifdef _KERNEL
 	nvlist_t *resource;
 
 	resource = zfs_event_create(spa, vd, type, name, aux);
 	if (resource)
 		zfs_zevent_post(resource, NULL, zfs_zevent_post_cb);
-#else
-	(void) spa, (void) vd, (void) type, (void) name, (void) aux;
-#endif
 }
 
 /*
@@ -1455,7 +1412,6 @@ zfs_post_autoreplace(spa_t *spa, vdev_t *vd)
 void
 zfs_post_state_change(spa_t *spa, vdev_t *vd, uint64_t laststate)
 {
-#ifdef _KERNEL
 	nvlist_t *aux;
 
 	/*
@@ -1483,12 +1439,8 @@ zfs_post_state_change(spa_t *spa, vdev_t *vd, uint64_t laststate)
 
 	if (aux)
 		fm_nvlist_destroy(aux, FM_NVA_FREE);
-#else
-	(void) spa, (void) vd, (void) laststate;
-#endif
 }
 
-#ifdef _KERNEL
 void
 zfs_ereport_init(void)
 {
@@ -1592,4 +1544,3 @@ ZFS_MODULE_PARAM(zfs_zevent, zfs_zevent_, retain_max, UINT, ZMOD_RW,
 	"Maximum recent zevents records to retain for duplicate checking");
 ZFS_MODULE_PARAM(zfs_zevent, zfs_zevent_, retain_expire_secs, UINT, ZMOD_RW,
 	"Expiration time for recent zevents records");
-#endif /* _KERNEL */

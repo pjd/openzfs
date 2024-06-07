@@ -612,7 +612,8 @@ usage(boolean_t requested)
 	if (current_command == NULL) {
 		int i;
 
-		(void) fprintf(fp, gettext("usage: zpool command args ...\n"));
+		(void) fprintf(fp,
+		    gettext("usage: zpool [-S socket] command args ...\n"));
 		(void) fprintf(fp,
 		    gettext("where 'command' is one of the following:\n\n"));
 
@@ -11645,6 +11646,7 @@ main(int argc, char **argv)
 	int i = 0;
 	char *cmdname;
 	char **newargv;
+	const char *path;
 
 	(void) setlocale(LC_ALL, "");
 	(void) setlocale(LC_NUMERIC, "C");
@@ -11652,6 +11654,15 @@ main(int argc, char **argv)
 	srand(time(NULL));
 
 	opterr = 0;
+
+	if (argc > 2 && strcmp(argv[1], "-S") == 0) {
+		path = argv[2];
+		argv[2] = argv[0]; /* preserve program name */
+		argc -= 2;
+		argv += 2;
+	} else {
+		path = ZFS_DEV;
+	}
 
 	/*
 	 * Make sure the user has specified some command.
@@ -11681,7 +11692,7 @@ main(int argc, char **argv)
 	if (strcmp(cmdname, "help") == 0)
 		return (zpool_do_help(argc, argv));
 
-	if ((g_zfs = libzfs_init()) == NULL) {
+	if ((g_zfs = libzfs_init_path(path)) == NULL) {
 		(void) fprintf(stderr, "%s\n", libzfs_error_init(errno));
 		return (1);
 	}

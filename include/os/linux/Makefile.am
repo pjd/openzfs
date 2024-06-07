@@ -82,7 +82,6 @@ kernel_spl_sys_HEADERS = \
 	%D%/spl/sys/random.h \
 	%D%/spl/sys/rwlock.h \
 	%D%/spl/sys/shrinker.h \
-	%D%/spl/sys/sid.h \
 	%D%/spl/sys/signal.h \
 	%D%/spl/sys/simd.h \
 	%D%/spl/sys/stat.h \

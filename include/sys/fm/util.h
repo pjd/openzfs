@@ -70,8 +70,6 @@ typedef struct erpt_dump {
 	} ed_tod_base;
 } erpt_dump_t;
 
-#ifdef _KERNEL
-
 #define	ZEVENT_SHUTDOWN		0x1
 
 typedef void zevent_cb_t(nvlist_t *, nvlist_t *);
@@ -99,7 +97,7 @@ extern void zfs_zevent_drain_all(uint_t *);
 extern zfs_file_t *zfs_zevent_fd_hold(int, minor_t *, zfs_zevent_t **);
 extern void zfs_zevent_fd_rele(zfs_file_t *);
 extern int zfs_zevent_next(zfs_zevent_t *, nvlist_t **, uint64_t *, uint64_t *);
-extern int zfs_zevent_wait(zfs_zevent_t *);
+extern int zfs_zevent_wait(void);
 extern int zfs_zevent_seek(zfs_zevent_t *, uint64_t);
 extern void zfs_zevent_init(zfs_zevent_t **);
 extern void zfs_zevent_destroy(zfs_zevent_t *);
@@ -107,12 +105,6 @@ extern void zfs_zevent_destroy(zfs_zevent_t *);
 extern void zfs_zevent_track_duplicate(void);
 extern void zfs_ereport_init(void);
 extern void zfs_ereport_fini(void);
-#else
-
-static inline void fm_init(void) { }
-static inline void fm_fini(void) { }
-
-#endif  /* _KERNEL */
 
 #ifdef	__cplusplus
 }

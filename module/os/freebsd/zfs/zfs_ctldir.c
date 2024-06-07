@@ -319,16 +319,6 @@ static struct vop_vector zfsctl_ops_root;
 static struct vop_vector zfsctl_ops_snapdir;
 static struct vop_vector zfsctl_ops_snapshot;
 
-void
-zfsctl_init(void)
-{
-}
-
-void
-zfsctl_fini(void)
-{
-}
-
 boolean_t
 zfsctl_is_node(vnode_t *vp)
 {

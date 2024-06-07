@@ -63,8 +63,6 @@
 #include <sys/fm/protocol.h>
 #include <sys/kstat.h>
 #include <sys/zfs_context.h>
-#ifdef _KERNEL
-#include <sys/atomic.h>
 #include <sys/condvar.h>
 #include <sys/zfs_ioctl.h>
 
@@ -88,7 +86,6 @@ static uint64_t zevent_eid = 0;
 static kmutex_t zevent_lock;
 static list_t zevent_list;
 static kcondvar_t zevent_cv;
-#endif /* _KERNEL */
 
 
 /*
@@ -112,8 +109,6 @@ static struct erpt_kstat erpt_kstat_data = {
 };
 
 kstat_t *fm_ksp;
-
-#ifdef _KERNEL
 
 static zevent_t *
 zfs_zevent_alloc(void)
@@ -351,10 +346,8 @@ zfs_zevent_next(zfs_zevent_t *ze, nvlist_t **event, uint64_t *event_size,
 	(void) nvlist_dup(ev->ev_nvl, event, KM_SLEEP);
 	*dropped = ze->ze_dropped;
 
-#ifdef _KERNEL
 	/* Include events dropped due to rate limiting */
 	*dropped += atomic_swap_64(&ratelimit_dropped, 0);
-#endif
 	ze->ze_dropped = 0;
 out:
 	mutex_exit(&zevent_lock);
@@ -366,7 +359,7 @@ out:
  * Wait in an interruptible state for any new events.
  */
 int
-zfs_zevent_wait(zfs_zevent_t *ze)
+zfs_zevent_wait(void)
 {
 	int error = EAGAIN;
 
@@ -476,7 +469,6 @@ zfs_zevent_destroy(zfs_zevent_t *ze)
 
 	kmem_free(ze, sizeof (zfs_zevent_t));
 }
-#endif /* _KERNEL */
 
 /*
  * Wrappers for FM nvlist allocators
@@ -1300,7 +1292,6 @@ fm_ena_time_get(uint64_t ena)
 	return (time);
 }
 
-#ifdef _KERNEL
 /*
  * Helper function to increment ereport dropped count.  Used by the event
  * rate limiting code to give feedback to the user about how many events were
@@ -1367,7 +1358,6 @@ fm_fini(void)
 		fm_ksp = NULL;
 	}
 }
-#endif /* _KERNEL */
 
 ZFS_MODULE_PARAM(zfs_zevent, zfs_zevent_, len_max, UINT, ZMOD_RW,
 	"Max event queue length");

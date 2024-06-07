@@ -23,8 +23,8 @@
  * Copyright (c) 2013, 2018 by Delphix. All rights reserved.
  */
 
-#ifndef	_SYS_FS_ZFS_VFSOPS_H
-#define	_SYS_FS_ZFS_VFSOPS_H
+#ifndef	_SYS_ZFS_VFSOPS_OS_H
+#define	_SYS_ZFS_VFSOPS_OS_H
 
 #include <sys/dataset_kstats.h>
 #include <sys/isa_defs.h>
@@ -223,15 +223,7 @@ typedef struct zfid_long {
 #define	SHORT_FID_LEN	(sizeof (zfid_short_t) - sizeof (uint16_t))
 #define	LONG_FID_LEN	(sizeof (zfid_long_t) - sizeof (uint16_t))
 
-extern void zfs_init(void);
-extern void zfs_fini(void);
-
-extern int zfs_resume_fs(zfsvfs_t *zfsvfs, struct dsl_dataset *ds);
-extern int zfs_end_fs(zfsvfs_t *zfsvfs, struct dsl_dataset *ds);
 extern void zfs_exit_fs(zfsvfs_t *zfsvfs);
-extern int zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os);
-extern void zfsvfs_free(zfsvfs_t *zfsvfs);
-extern int zfs_check_global_label(const char *dsname, const char *hexsl);
 
 extern int zfs_domount(struct super_block *sb, zfs_mnt_t *zm, int silent);
 extern void zfs_preumount(struct super_block *sb);
@@ -241,11 +233,9 @@ extern int zfs_statvfs(struct inode *ip, struct kstatfs *statp);
 extern int zfs_vget(struct super_block *sb, struct inode **ipp, fid_t *fidp);
 extern int zfs_prune(struct super_block *sb, unsigned long nr_to_scan,
     int *objects);
-extern int zfs_get_temporary_prop(dsl_dataset_t *ds, zfs_prop_t zfs_prop,
-    uint64_t *val, char *setpoint);
 
 #ifdef	__cplusplus
 }
 #endif
 
-#endif	/* _SYS_FS_ZFS_VFSOPS_H */
+#endif	/* _SYS_ZFS_VFSOPS_OS_H */

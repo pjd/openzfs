@@ -47,6 +47,10 @@
 typedef uint_t		zoneid_t;
 typedef int		projid_t;
 
+#ifdef __FreeBSD__
+typedef void		zidmap_t;
+#endif
+
 #include <sys/param.h> /* for NBBY */
 
 #endif

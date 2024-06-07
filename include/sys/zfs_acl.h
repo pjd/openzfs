@@ -30,6 +30,7 @@
 #include <sys/types32.h>
 #include <sys/xvattr.h>
 #endif
+#include <sys/types.h>
 #include <sys/acl.h>
 #include <sys/dmu.h>
 #include <sys/zfs_fuid.h>
@@ -204,17 +205,17 @@ typedef struct zfs_acl_ids {
 struct znode;
 struct zfsvfs;
 
-#ifdef _KERNEL
 int zfs_acl_ids_create(struct znode *, int, vattr_t *,
     cred_t *, vsecattr_t *, zfs_acl_ids_t *, zidmap_t *);
 void zfs_acl_ids_free(zfs_acl_ids_t *);
 boolean_t zfs_acl_ids_overquota(struct zfsvfs *, zfs_acl_ids_t *, uint64_t);
+#ifdef __FreeBSD__
 int zfs_getacl(struct znode *, vsecattr_t *, boolean_t, cred_t *);
+#endif
 int zfs_setacl(struct znode *, vsecattr_t *, boolean_t, cred_t *);
 void zfs_acl_rele(void *);
 void zfs_oldace_byteswap(ace_t *, int);
 void zfs_ace_byteswap(void *, size_t, boolean_t);
-extern boolean_t zfs_has_access(struct znode *zp, cred_t *cr);
 extern int zfs_zaccess(struct znode *, int, int, boolean_t, cred_t *,
     zidmap_t *);
 int zfs_fastaccesschk_execute(struct znode *, cred_t *);
@@ -223,10 +224,10 @@ extern int zfs_zaccess_unix(void *, int, cred_t *);
 extern int zfs_acl_access(struct znode *, int, cred_t *);
 int zfs_acl_chmod_setattr(struct znode *, zfs_acl_t **, uint64_t);
 int zfs_zaccess_delete(struct znode *, struct znode *, cred_t *, zidmap_t *);
-int zfs_zaccess_rename(struct znode *, struct znode *,
-    struct znode *, struct znode *, cred_t *cr, zidmap_t *mnt_ns);
+int zfs_zaccess_rename(struct znode *, struct znode *, struct znode *,
+    struct znode *, cred_t *cr, zidmap_t *);
 void zfs_acl_free(zfs_acl_t *);
-int zfs_vsec_2_aclp(struct zfsvfs *, umode_t, vsecattr_t *, cred_t *,
+int zfs_vsec_2_aclp(struct zfsvfs *, boolean_t, vsecattr_t *, cred_t *,
     struct zfs_fuid_info **, zfs_acl_t **);
 int zfs_aclset_common(struct znode *, zfs_acl_t *, cred_t *, dmu_tx_t *);
 uint64_t zfs_external_acl(struct znode *);
@@ -240,8 +241,6 @@ uint64_t zfs_mode_compute(uint64_t, zfs_acl_t *,
     uint64_t *, uint64_t, uint64_t);
 int zfs_acl_node_read(struct znode *, boolean_t, zfs_acl_t **, boolean_t);
 int zfs_acl_chown_setattr(struct znode *);
-
-#endif
 
 #ifdef	__cplusplus
 }

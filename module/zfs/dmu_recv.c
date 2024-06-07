@@ -63,9 +63,7 @@
 #include <sys/zfeature.h>
 #include <sys/bqueue.h>
 #include <sys/objlist.h>
-#ifdef _KERNEL
 #include <sys/zfs_vfsops.h>
-#endif
 #include <sys/zfs_file.h>
 
 static uint_t zfs_recv_queue_length = SPA_MAXBLOCKSIZE;

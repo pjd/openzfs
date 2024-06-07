@@ -81,9 +81,7 @@ static dnode_phys_t dnode_phys_zero __maybe_unused;
 int zfs_default_bs = SPA_MINBLOCKSHIFT;
 int zfs_default_ibs = DN_MAX_INDBLKSHIFT;
 
-#ifdef	_KERNEL
 static kmem_cbrc_t dnode_move(void *, void *, size_t, void *);
-#endif /* _KERNEL */
 
 static int
 dbuf_compare(const void *x1, const void *x2)
@@ -872,7 +870,6 @@ dnode_reallocate(dnode_t *dn, dmu_object_type_t ot, int blocksize,
 	mutex_exit(&dn->dn_mtx);
 }
 
-#ifdef	_KERNEL
 static void
 dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 {
@@ -1013,7 +1010,7 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 }
 
 static kmem_cbrc_t
-dnode_move(void *buf, void *newbuf, size_t size, void *arg)
+dnode_move(void *buf, void *newbuf, size_t size __unused, void *arg __unused)
 {
 	dnode_t *odn = buf, *ndn = newbuf;
 	objset_t *os;
@@ -1151,7 +1148,6 @@ dnode_move(void *buf, void *newbuf, size_t size, void *arg)
 
 	return (KMEM_CBRC_YES);
 }
-#endif	/* _KERNEL */
 
 static void
 dnode_slots_hold(dnode_children_t *children, int idx, int slots)

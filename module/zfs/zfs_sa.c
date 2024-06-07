@@ -71,7 +71,12 @@ const sa_attr_reg_t zfs_attr_table[ZPL_END+1] = {
 };
 
 
-#ifdef _KERNEL
+#ifndef _KERNEL
+void
+zfs_sa_upgrade(sa_handle_t *hdl __unused, dmu_tx_t *tx __unused)
+{
+}
+#else
 static int zfs_zil_saxattr = 1;
 
 int

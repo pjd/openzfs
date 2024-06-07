@@ -26,22 +26,31 @@
 #ifndef _SYS_ZFS_VFSOPS_H
 #define	_SYS_ZFS_VFSOPS_H
 
-#ifdef _KERNEL
 #include <sys/zfs_vfsops_os.h>
+
+extern void zfs_init(void);
+extern void zfs_fini(void);
 
 extern void zfs_set_fuid_feature(struct zfsvfs *zfsvfs);
 extern int zfs_suspend_fs(zfsvfs_t *zfsvfs);
+extern int zfs_resume_fs(zfsvfs_t *zfsvfs, struct dsl_dataset *ds);
 extern int zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os);
 extern int zfsvfs_create(const char *osname, boolean_t readonly,
     zfsvfs_t **zfvp);
+extern int zfsvfs_create_impl(zfsvfs_t *zfsvfs, objset_t *os);
+extern void zfsvfs_free(zfsvfs_t *zfsvfs);
 extern int zfsvfs_setup(zfsvfs_t *zfsvfs, boolean_t mounting);
+extern int zfs_end_fs(zfsvfs_t *zfsvfs, struct dsl_dataset *ds);
 extern void zfs_unregister_callbacks(zfsvfs_t *zfsvfs);
 
 extern boolean_t zfs_is_readonly(zfsvfs_t *zfsvfs);
 extern void zfs_change_readonly(zfsvfs_t *zfsvfs, boolean_t on);
 extern int zfs_register_callbacks(zfsvfs_t *zfsvfs);
 extern int zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting);
-#endif
+extern boolean_t zfs_get_vfs_flag_unmounted(objset_t *os);
+extern int zfs_check_global_label(const char *dsname, const char *hexsl);
+extern int zfs_get_temporary_prop(struct dsl_dataset *ds, zfs_prop_t zfs_prop,
+    uint64_t *val, char *setpoint);
 
 extern void zfsvfs_update_fromname(const char *, const char *);
 

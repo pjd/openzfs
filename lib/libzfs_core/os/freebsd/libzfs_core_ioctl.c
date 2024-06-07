@@ -18,12 +18,13 @@
  *
  * CDDL HEADER END
  */
-#include <sys/types.h>
+
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/zfs_ioctl.h>
 #include <os/freebsd/zfs/sys/zfs_ioctl_compat.h>
 #include <err.h>
+#include <libzutil.h>
 #include <libzfs_core.h>
 
 int zfs_ioctl_version = ZFS_IOCVER_UNDEF;
@@ -104,6 +105,10 @@ lzc_ioctl_fd(int fd, unsigned long request, zfs_cmd_t *zc)
 {
 	size_t oldsize;
 	int ret, cflag = ZFS_CMD_COMPAT_NONE;
+
+	if (zsock_is_sock(fd)) {
+		return (zsock_ioctl(fd, request, zc));
+	}
 
 	if (zfs_ioctl_version == ZFS_IOCVER_UNDEF)
 		zfs_ioctl_version = get_zfs_ioctl_version();

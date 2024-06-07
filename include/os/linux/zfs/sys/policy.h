@@ -35,6 +35,7 @@
 #include <sys/xvattr.h>
 #include <sys/zpl.h>
 
+struct inode;
 struct znode;
 
 int secpolicy_nfs(const cred_t *);
@@ -42,13 +43,13 @@ int secpolicy_sys_config(const cred_t *, boolean_t);
 int secpolicy_vnode_access2(const cred_t *, struct inode *,
     uid_t, mode_t, mode_t);
 int secpolicy_vnode_any_access(const cred_t *, struct inode *, uid_t);
-int secpolicy_vnode_chown(const cred_t *, uid_t);
+int secpolicy_vnode_chown(struct inode *, const cred_t *, uid_t);
 int secpolicy_vnode_create_gid(const cred_t *);
-int secpolicy_vnode_remove(const cred_t *);
-int secpolicy_vnode_setdac(const cred_t *, uid_t);
+int secpolicy_vnode_remove(struct inode *, const cred_t *);
+int secpolicy_vnode_setdac(struct inode *, const cred_t *, uid_t);
 int secpolicy_vnode_setid_retain(struct znode *, const cred_t *, boolean_t);
-int secpolicy_vnode_setids_setgids(const cred_t *, gid_t, zidmap_t *,
-    struct user_namespace *);
+int secpolicy_vnode_setids_setgids(struct inode *, const cred_t *, gid_t,
+    zidmap_t *, struct user_namespace *);
 int secpolicy_zinject(const cred_t *);
 int secpolicy_zfs(const cred_t *);
 int secpolicy_zfs_proc(const cred_t *, proc_t *);

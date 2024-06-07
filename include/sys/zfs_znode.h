@@ -28,6 +28,7 @@
 #define	_SYS_FS_ZFS_ZNODE_H
 
 #include <sys/zfs_acl.h>
+#include <sys/zfs_rlock.h>
 #include <sys/zil.h>
 #include <sys/zfs_project.h>
 
@@ -162,7 +163,7 @@ extern int zfs_obj_to_pobj(objset_t *osp, sa_handle_t *hdl,
 extern int zfs_obj_to_path(objset_t *osp, uint64_t obj, char *buf, int len);
 extern int zfs_get_zplprop(objset_t *os, zfs_prop_t prop, uint64_t *value);
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(__libzpool__)
 #include <sys/zfs_znode_impl.h>
 
 /*
@@ -284,7 +285,6 @@ extern void	zfs_remove_op_tables(void);
 extern int	zfs_create_op_tables(void);
 extern dev_t	zfs_cmpldev(uint64_t);
 extern int	zfs_get_stats(objset_t *os, nvlist_t *nv);
-extern boolean_t zfs_get_vfs_flag_unmounted(objset_t *os);
 extern void	zfs_znode_dmu_fini(znode_t *);
 
 extern void zfs_log_create(zilog_t *zilog, dmu_tx_t *tx, uint64_t txtype,
@@ -326,8 +326,8 @@ extern void zfs_log_setsaxattr(zilog_t *zilog, dmu_tx_t *tx, int txtype,
     znode_t *zp, const char *name, const void *value, size_t size);
 
 extern void zfs_znode_update_vfs(struct znode *);
+#endif	/* defined(_KERNEL) || defined(__libzpool__) */
 
-#endif
 #ifdef	__cplusplus
 }
 #endif
